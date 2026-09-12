@@ -1,0 +1,22 @@
+# Experiment runner configuration
+# Run with: python run_experiment.py --config experiments/experiment_config.yaml
+
+experiment:
+  name: baseline_comparison
+  datasets:
+    - adult
+    - breast_cancer
+    - smartfactory
+  mode: mock   # mock | real
+  random_seed: 42
+
+baselines:
+  - always_auto_repair
+  - confidence_threshold
+
+confidence_thresholds:
+  - 0.5
+  - 0.6
+  - 0.7
+  - 0.8
+  - 0.9

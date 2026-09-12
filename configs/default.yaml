@@ -1,0 +1,62 @@
+# Default experiment configuration
+# All paths are relative to the project root.
+
+project:
+  name: risk-aware-data-repair
+  random_seed: 42
+
+data:
+  # Actual dataset folder (detected during project inspection)
+  # NOTE: spec assumed 'data/', actual folder is 'datasets/'
+  root_dir: datasets
+  datasets:
+    adult:
+      clean_file: clean.csv
+      dirty_file: dirty.csv
+      domain: socioeconomic
+    breast_cancer:
+      clean_file: clean.csv
+      dirty_file: dirty.csv
+      domain: healthcare
+    smartfactory:
+      clean_file: clean.csv
+      dirty_file: dirty.csv
+      domain: industrial
+
+repair:
+  mock_mode: true
+  n_samples: 5          # self-consistency samples
+  top_k_candidates: 3   # candidates per cell
+
+calibration:
+  method: isotonic      # isotonic | platt
+  cal_fraction: 0.3     # fraction of detected errors used for calibration
+  test_fraction: 0.5    # remainder used for test
+
+detection:
+  missing_null_strings:
+    - ""
+    - "null"
+    - "none"
+    - "na"
+    - "n/a"
+    - "nan"
+  iqr_k: 3.0                      # fence multiplier; higher = fewer outlier flags
+  zscore_threshold: 4.0
+  rare_category_threshold: 0.01   # fraction of rows below which a category is "rare"
+
+  # Per-dataset detection overrides
+  # flag_statistical_outliers=false disables IQR/z-score checks for datasets
+  # where non-NaN values are known to be valid (e.g. Smart Factory sensor data)
+  dataset_overrides:
+    adult:
+      flag_statistical_outliers: true
+    breast_cancer:
+      flag_statistical_outliers: true
+    smartfactory:
+      # SF non-NaN values match the clean data exactly; IQR flags only FPs here.
+      # Set to true if you want to experiment with outlier detection on SF.
+      flag_statistical_outliers: false
+
+results:
+  output_dir: results

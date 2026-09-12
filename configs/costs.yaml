@@ -1,0 +1,77 @@
+# Experimental cost configuration
+#
+# IMPORTANT: These costs are experimental assumptions defined by this project.
+# They are NOT supplied by the REIN benchmark and do NOT represent real-world
+# monetary values. They exist to test the cost-sensitive decision framework.
+#
+# Cost units are abstract "penalty units". Lower total cost = better policy.
+#
+# ─── ACTION COST EQUATIONS ───────────────────────────────────────────────────
+#
+#   E[ACCEPT_REPAIR]   = (1 - p) * c_wrong_repair
+#   E[HUMAN_REVIEW]    = c_human_review             (constant)
+#   E[LEAVE_UNCHANGED] = c_leave_error              (constant)
+#
+#   where p = calibrated probability of correctness.
+#
+# ─── ANALYTICAL THRESHOLDS ───────────────────────────────────────────────────
+#
+#   ACCEPT preferred over REVIEW when:
+#       p > 1 - c_human_review / c_wrong_repair
+#
+#   ACCEPT preferred over LEAVE when:
+#       p > 1 - c_leave_error / c_wrong_repair
+#
+#   With defaults (wrong=10, review=2, leave=5):
+#       Accept over Review:  p > 1 - 2/10 = 0.80
+#       Accept over Leave:   p > 1 - 5/10 = 0.50
+#       → ACCEPT if p > 0.80, REVIEW if p ≤ 0.80 (since review(2) < leave(5))
+
+# ─── Default costs (used when no dataset-specific override exists) ────────────
+
+defaults:
+  c_wrong_repair: 10    # cost of automatically applying an incorrect repair
+  c_human_review: 2     # cost of sending one cell to human review
+  c_leave_error: 5      # cost of leaving a genuine error unrepaired
+
+# ─── Per-dataset cost overrides ──────────────────────────────────────────────
+# Rationale:
+#   adult        - socioeconomic; BUT detected records are FPs (fnlwgt outliers)
+#                  income label flips undetectable from dirty data alone
+#   breast_cancer - medical domain; wrong repair has higher consequence
+#                  (assumption, not a clinical fact)
+#   smartfactory  - industrial sensor; wrong imputation can cause downstream errors
+
+datasets:
+  adult:
+    c_wrong_repair: 10
+    c_human_review: 2
+    c_leave_error: 5
+    note: >
+      Adult detections are statistical false positives (fnlwgt IQR outliers).
+      True corruption (income label flips) is undetectable from dirty data.
+      Calibrated probabilities will be near 0 for all records.
+
+  breast_cancer:
+    c_wrong_repair: 50
+    c_human_review: 5
+    c_leave_error: 10
+    note: >
+      Medical data: wrong repair may affect downstream diagnosis or analysis.
+      Higher wrong-repair cost reflects the domain sensitivity.
+      ID columns (Unnamed: 0, Sample code number) excluded from repair decisions.
+
+  smartfactory:
+    c_wrong_repair: 25
+    c_human_review: 2
+    c_leave_error: 5
+    note: >
+      Industrial sensor data: incorrect imputation propagates into control systems.
+      All detections are genuine missing values (no false positives from IQR).
+
+# ─── Legacy tiers (kept for reference) ───────────────────────────────────────
+
+cost_tiers:
+  low:    { c_wrong_repair: 10 }
+  medium: { c_wrong_repair: 25 }
+  high:   { c_wrong_repair: 50 }
