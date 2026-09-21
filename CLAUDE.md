@@ -120,12 +120,14 @@ invalidates already-reported numbers.
 
 ## 4. Current state
 
-**Phases 1–10 complete. Phases 11–13 not started.**
+**Phases 1–11 complete. Phases 12–13 not started.**
 
-Repo: `github.com/sruthi-pyda/data-repair-project`, branch `main`, HEAD `5d8cc22`.
+Repo: `github.com/sruthi-pyda/data-repair-project`. Branches off `main`
+(HEAD `5d8cc22`): `fix/known-issues-phase5` (§5 fixes) and
+`feat/phase11-dashboard` (Phase 11, built on top of the fixes). Neither is
+merged yet — see §9 for what to coordinate with Sruthi first.
 
-Tests: **817 collected, 815 passing, 2 failing** (see §5 — the 2 failures are an
-environment issue, not a logic bug).
+Tests: **936 passing** on pandas 2.3.
 
 | File | Tests | Phase |
 |---|---|---|
@@ -139,14 +141,27 @@ environment issue, not a logic bug).
 | `test_policy.py` | 103 | 8 |
 | `test_baselines.py` | 87 | 9 |
 | `test_evaluation.py` | 133 | 10 |
+| `test_pipeline_runner.py` | 31 | 11 |
+| `test_plots.py` | 24 | 11 |
+| `test_app.py` | 15 | 11 |
 
-**Empty stub files (Phases 11–13 not begun):**
+(Phase 2/6/7/8 files gained regression tests for the §5 fixes.)
+
+**Phase 11 modules:**
 
 ```
-app.py                      ← Streamlit dashboard
-run_experiment.py           ← end-to-end runner (NOTHING can run end-to-end yet)
+src/pipeline/runner.py      ← run_pipeline / decide_all / evaluate_policies
+                               shared by app.py and (future) run_experiment.py
+src/visualization/plots.py  ← figure-returning matplotlib helpers
+app.py                      ← Streamlit dashboard: `streamlit run app.py`
+.claude/launch.json         ← dev-server config for the desktop-app browser
+```
+
+**Empty stub files (Phases 12–13 not begun):**
+
+```
+run_experiment.py           ← end-to-end runner; build on src/pipeline/runner.py
 src/repair/llm_repair.py    ← real LLM integration
-src/visualization/plots.py  ← plotting helpers
 src/uncertainty/uncertainty.py   ← dead stub; estimator.py is the real module
 ```
 
@@ -185,6 +200,18 @@ repairing every statistical outlier. Preserve it; do not tune it away.
 ---
 
 ## 5. Known issues — fix these first
+
+**Status (2026-09-22): 5.1, 5.2, 5.3 and the first bullet of 5.4 are fixed on
+branch `fix/known-issues-phase5`.** The text below is kept as the record of
+what was wrong and why the fixes were chosen. Still open: repeated-split
+confidence intervals and the 500-record demo cap (both Phase 13), and the
+p-dependent abstention cost (discuss before implementing).
+
+Multivariate calibration result (mock mode, single split, seed 42):
+breast_cancer Brier 0.2039→0.1983 / ECE 0.1351→0.0650 vs single-feature
+logistic (isotonic still best on Brier); smartfactory 0.1684, best method.
+`self_consistency` gets ~0 weight on both — in mock mode all the gain comes
+from entropy. Report this; do not hide it.
 
 ### 5.1 Two failing tests are a pandas 3.x incompatibility
 
@@ -257,7 +284,11 @@ calibrator is a cheap, real contribution and a natural ablation table.
 
 ### Phase 11 — Streamlit dashboard (`app.py`, `src/visualization/plots.py`)
 
-Nothing exists. Highest demo value. Must work offline in mock mode with no API key.
+**Done** on `feat/phase11-dashboard`. `streamlit run app.py`, offline, no key.
+The original spec follows; all of it is implemented. Verified by
+`tests/test_app.py` (AppTest, headless) including the slider-flips-decision
+interaction. Known Windows quirk: demo scripts need `PYTHONIOENCODING=utf-8`
+because they print box-drawing characters; the app itself is unaffected.
 
 Sidebar: dataset selector, mock/real mode, three cost sliders, confidence threshold
 for the baseline, n samples, random seed.
@@ -321,9 +352,11 @@ python demo_uncertainty.py
 python demo_calibration.py
 python demo_risk.py
 
-# NOT YET WORKING — Phase 13 must build these
-python run_experiment.py --dataset adult --mode mock
+# Phase 11 dashboard (offline, mock mode)
 streamlit run app.py
+
+# NOT YET WORKING — Phase 13 must build this (use src/pipeline/runner.py)
+python run_experiment.py --dataset adult --mode mock
 ```
 
 Datasets live in `datasets/{adult,breast_cancer,smartfactory}/{clean,dirty}.csv`.

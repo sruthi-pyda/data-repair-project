@@ -9,8 +9,10 @@ pyyaml>=6.0
 # ── Testing ───────────────────────────────────────────────────────────────────
 pytest>=7.4.0
 
+# ── Dashboard (Phase 11) ──────────────────────────────────────────────────────
+streamlit>=1.30.0
+
 # ── Planned (future phases — not yet required to run the current pipeline) ────
-# streamlit>=1.28.0       # Phase 12: interactive demo app
 # openai>=1.0.0           # Phase 12: real LLM integration
 # python-dotenv>=1.0.0    # Phase 12: .env loading for API keys
 # plotly>=5.17.0          # Phase 12: interactive visualisations
