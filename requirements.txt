@@ -1,5 +1,5 @@
 # ── Core dependencies (used in Phases 1–7) ────────────────────────────────────
-pandas>=2.0.0
+pandas>=2.0.0,<3.0   # 3.x changes text dtype to 'str'; profiler + tests verified on 2.x
 numpy>=1.24.0
 scikit-learn>=1.3.0
 scipy>=1.11.0

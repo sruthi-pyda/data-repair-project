@@ -19,10 +19,11 @@ and must not be fabricated.
 
 from __future__ import annotations
 
+import pandas as pd
 import pytest
 
 from src.data.loader import DataLoader
-from src.data.profiler import profile_dataset
+from src.data.profiler import _classify_column_kind, profile_dataset
 from src.data.schema import (
     ColumnKind,
     CorruptionKind,
@@ -220,6 +221,42 @@ class TestColumnKind:
 
     def test_sf_no_id_columns(self, sf_profile):
         assert sf_profile.id_columns == []
+
+    # ── Regression: pandas 3.x string dtype ────────────────────────────────────
+    # pandas 3.0 (or 2.x with ``future.infer_string``) reads text columns as the
+    # dedicated ``str`` dtype instead of ``object``. The MIXED check used to be
+    # gated on ``dtype == object`` and silently fell through to CATEGORICAL.
+
+    def test_mixed_classification_is_dtype_agnostic(self):
+        """Same values must classify as MIXED under both object and str dtype."""
+        values = [str(i % 10 + 1) for i in range(40)] + ["1a0", "?"]
+
+        as_object = pd.Series(values, dtype=object)
+        assert _classify_column_kind(as_object, len(values)) == ColumnKind.MIXED
+
+        with pd.option_context("future.infer_string", True):
+            as_str = pd.Series(values)
+            assert as_str.dtype != object, "fixture must exercise the non-object path"
+            assert _classify_column_kind(as_str, len(values)) == ColumnKind.MIXED
+
+    def test_categorical_stays_categorical_under_str_dtype(self):
+        """Non-numeric text must still be CATEGORICAL, not accidentally MIXED."""
+        values = ["red", "green", "blue", "green", "red"] * 4
+        with pd.option_context("future.infer_string", True):
+            s = pd.Series(values)
+            assert _classify_column_kind(s, len(values)) == ColumnKind.CATEGORICAL
+
+    def test_bc_bare_nuclei_is_mixed_under_str_dtype(self, loader):
+        """Full-dataset check: Bare Nuclei must be MIXED with format errors
+        characterised even when pandas infers the ``str`` dtype."""
+        with pd.option_context("future.infer_string", True):
+            clean_df, dirty_df = loader.load("breast_cancer")
+            profile = profile_dataset(
+                "breast_cancer", loader.discover("breast_cancer"), clean_df, dirty_df
+            )
+        col = profile.columns["Bare Nuclei"]
+        assert col.kind == ColumnKind.MIXED
+        assert CorruptionKind.FORMAT_ERROR in col.corruption.corruption_kinds
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

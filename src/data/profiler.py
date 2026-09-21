@@ -216,8 +216,9 @@ def _classify_column_kind(series: pd.Series, n_rows: int) -> ColumnKind:
     1. If cardinality > _ID_CARDINALITY_THRESHOLD fraction of rows → ID_LIKE
     2. If exactly 2 distinct non-null values → BINARY
     3. If numeric dtype (int / float) → NUMERICAL
-    4. If object dtype and ≥ _MIXED_NUMERIC_FRACTION of non-null values parse
-       as numbers → MIXED
+    4. If non-numeric dtype (object on pandas 2.x, ``str`` on pandas 3.x with
+       ``future.infer_string``) and ≥ _MIXED_NUMERIC_FRACTION of non-null
+       values parse as numbers → MIXED
     5. Otherwise → CATEGORICAL
     """
     non_null = series.dropna()
@@ -235,8 +236,10 @@ def _classify_column_kind(series: pd.Series, n_rows: int) -> ColumnKind:
     if pd.api.types.is_numeric_dtype(series):
         return ColumnKind.NUMERICAL
 
-    # 4. Object dtype: check if mostly parseable as numbers
-    if series.dtype == object:
+    # 4. Non-numeric dtype: check if mostly parseable as numbers.
+    #    Must not test ``dtype == object`` — pandas 3.x infers text columns as
+    #    the dedicated ``str`` dtype, which would skip this branch entirely.
+    if not pd.api.types.is_numeric_dtype(series):
         numeric_parseable = pd.to_numeric(non_null, errors="coerce").notna().sum()
         if len(non_null) > 0 and (numeric_parseable / len(non_null)) >= _MIXED_NUMERIC_FRACTION:
             return ColumnKind.MIXED
