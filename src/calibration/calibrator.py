@@ -42,18 +42,39 @@ f: [0,1] → [0,1] such that f is non-decreasing and minimises MSE.
 No assumed functional form — can capture arbitrary monotone shapes.
 Needs more data than logistic calibration to be reliable.
 
+Method C: Multivariate logistic calibration
+--------------------------------------------
+Phase 5 computes three uncertainty signals per repair, but Methods A and B
+use only the first:
+
+    raw_confidence      probability the repairer assigned to its top candidate
+    self_consistency    fraction of resampled repair calls that agreed with it
+    normalized_entropy  spread of the candidate distribution, in [0, 1]
+
+Method C fits a logistic regression over all three:
+
+    p_cal = sigmoid(w0 + w1·raw_conf + w2·self_consistency + w3·norm_entropy)
+
+with a small L2 penalty for numerical stability. It is the ablation for
+CLAUDE.md §5.3: if Brier/ECE do not improve over Method A, the extra
+signals carry no information beyond raw confidence; if they do, that is a
+cheap, real contribution. Samples that lack the extra signals (built from
+older records) skip Method C rather than imputing.
+
 METHOD COMPARISON
 ==================
-| Method     | Assumptions          | Data needed | Risk of over-fit |
-|------------|----------------------|-------------|-----------------|
-| Raw        | None (baseline)      | None        | None            |
-| Logistic   | Smooth sigmoid shape | Low (~20+)  | Low             |
-| Isotonic   | Only monotonicity    | Moderate    | Moderate        |
+| Method       | Features                  | Assumptions          | Data needed | Risk of over-fit |
+|--------------|---------------------------|----------------------|-------------|-----------------|
+| Raw          | raw_confidence            | None (baseline)      | None        | None            |
+| Logistic     | raw_confidence            | Smooth sigmoid shape | Low (~20+)  | Low             |
+| Isotonic     | raw_confidence            | Only monotonicity    | Moderate    | Moderate        |
+| Multivariate | conf + consistency + ent. | Linear in logit      | Low (~30+)  | Low (L2)        |
 
 DATA LEAKAGE PREVENTION
 ========================
 clean_df is used ONLY to create 0/1 correctness labels in CalibrationBuilder.
-The calibrator's input feature is ONLY raw_confidence — NOT the actual
+The calibrator's input features are ONLY the Phase 5 uncertainty signals
+(raw_confidence, self_consistency, normalized_entropy) — NOT the actual
 clean value. The calibrator never learns "what the correct value is".
 
 Leakage rule: CalibrationBuilder.build(unc_records, clean_df, ...) is the
@@ -102,6 +123,15 @@ _MIN_TRAIN_SAMPLES: int = 10
 # Minimum label variance required for meaningful calibration
 _MIN_LABEL_VARIANCE: float = 1e-6
 
+# Feature names used by MultivariateLogisticCalibrator, in column order.
+MULTIVARIATE_FEATURES: Tuple[str, str, str] = (
+    "raw_confidence", "self_consistency", "normalized_entropy",
+)
+
+# L2 penalty on the multivariate weights (not the bias). Small: it only
+# prevents divergence when a feature separates the labels perfectly.
+_MULTIVARIATE_L2: float = 1e-3
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # CalibrationSample
@@ -111,7 +141,7 @@ _MIN_LABEL_VARIANCE: float = 1e-6
 @dataclass
 class CalibrationSample:
     """
-    One (raw_confidence, correctness) pair for calibration.
+    One (uncertainty signals, correctness) pair for calibration.
 
     Attributes
     ----------
@@ -119,10 +149,19 @@ class CalibrationSample:
     row_id : int
     column : str
     raw_confidence : float
-        Input feature to the calibrator. No clean values inside.
+        Primary input feature to the calibrator. No clean values inside.
     correct : int
         Ground-truth label: 1 if top_candidate == clean value, else 0.
         Derived from clean_df via CalibrationBuilder ONLY.
+    self_consistency : float or None
+        Phase 5 agreement fraction. Optional so that samples built before
+        this field existed (or by hand in tests) still construct.
+    normalized_entropy : float or None
+        Phase 5 candidate-distribution entropy scaled to [0, 1]. Optional
+        for the same reason.
+
+    Both optional fields are additional calibrator *inputs* (Method C). They
+    come from UncertaintyRecord, which never sees clean values.
     """
 
     dataset: str
@@ -130,6 +169,25 @@ class CalibrationSample:
     column: str
     raw_confidence: float
     correct: int  # 0 or 1
+    self_consistency: Optional[float] = None
+    normalized_entropy: Optional[float] = None
+
+    def has_multivariate_features(self) -> bool:
+        """True when every Method C feature is present."""
+        return self.self_consistency is not None and self.normalized_entropy is not None
+
+    def feature_vector(self) -> List[float]:
+        """Features in MULTIVARIATE_FEATURES order. Raises if any is missing."""
+        if not self.has_multivariate_features():
+            raise ValueError(
+                f"Sample ({self.dataset}, row {self.row_id}, {self.column}) "
+                "lacks self_consistency / normalized_entropy."
+            )
+        return [
+            float(self.raw_confidence),
+            float(self.self_consistency),  # type: ignore[arg-type]
+            float(self.normalized_entropy),  # type: ignore[arg-type]
+        ]
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -183,6 +241,8 @@ class CalibrationBuilder:
                 column=rec.column,
                 raw_confidence=rec.raw_confidence,
                 correct=correct,
+                self_consistency=rec.self_consistency,
+                normalized_entropy=rec.normalized_entropy,
             ))
 
         n_pos = sum(s.correct for s in samples)
@@ -371,6 +431,105 @@ class IsotonicCalibrator:
         return self._fitted
 
 
+class MultivariateLogisticCalibrator:
+    """
+    Logistic regression over all three Phase 5 uncertainty signals.
+
+    Learns:
+        p_calibrated = sigmoid(w · x + b)
+        x = [raw_confidence, self_consistency, normalized_entropy]
+
+    Fitted by minimising binary cross-entropy plus a small L2 penalty on w
+    (not on b). With L2 → 0 and w2 = w3 = 0 this reduces exactly to
+    LogisticCalibrator, so any Brier/ECE gain over Method A is attributable
+    to the extra signals.
+
+    Interpretation of fitted weights (sign, not magnitude):
+        w1 > 0   higher raw confidence   → more likely correct
+        w2 > 0   more self-consistent    → more likely correct
+        w3 < 0   higher entropy (spread) → less likely correct
+
+    Same interface as LogisticCalibrator / IsotonicCalibrator, but ``X`` is
+    2-D with shape (n_samples, 3). A 1-D ``X`` is rejected rather than
+    silently broadcast.
+    """
+
+    name: str = "multivariate"
+    feature_names: Tuple[str, ...] = MULTIVARIATE_FEATURES
+
+    def __init__(self, l2: float = _MULTIVARIATE_L2) -> None:
+        if l2 < 0:
+            raise ValueError(f"l2 must be >= 0, got {l2}")
+        self.l2 = l2
+        self.weights_: Optional[np.ndarray] = None
+        self.bias_: Optional[float] = None
+        self._fitted = False
+
+    @staticmethod
+    def _as_matrix(X: np.ndarray) -> np.ndarray:
+        X = np.asarray(X, dtype=float)
+        if X.ndim != 2 or X.shape[1] != len(MULTIVARIATE_FEATURES):
+            raise ValueError(
+                f"Expected X of shape (n, {len(MULTIVARIATE_FEATURES)}), got {X.shape}"
+            )
+        return X
+
+    def fit(self, X: np.ndarray, y: np.ndarray) -> None:
+        X = self._as_matrix(X)
+        y = np.asarray(y, dtype=float)
+        if len(X) != len(y):
+            raise ValueError(f"X has {len(X)} rows but y has {len(y)}")
+
+        if len(y) == 0 or y.var() < _MIN_LABEL_VARIANCE:
+            logger.warning(
+                "MultivariateLogisticCalibrator: constant labels. Skipping fit."
+            )
+            self.weights_ = None
+            self.bias_ = None
+            self._fitted = False
+            return
+
+        eps = 1e-9
+        n_feat = X.shape[1]
+
+        def _objective(params: np.ndarray) -> float:
+            w, b = params[:n_feat], params[n_feat]
+            p = expit(X @ w + b)
+            nll = -float(np.mean(y * np.log(p + eps) + (1 - y) * np.log(1 - p + eps)))
+            return nll + self.l2 * float(np.dot(w, w))
+
+        # Start from Method A's identity: weight 1 on raw_confidence, 0 elsewhere.
+        x0 = np.zeros(n_feat + 1)
+        x0[0] = 1.0
+        result = minimize(
+            _objective, x0=x0, method="L-BFGS-B",
+            options={"maxiter": 2000, "ftol": 1e-12},
+        )
+        self.weights_ = np.asarray(result.x[:n_feat], dtype=float)
+        self.bias_ = float(result.x[n_feat])
+        self._fitted = True
+        logger.debug(
+            "MultivariateLogisticCalibrator: w=%s b=%.4f converged=%s",
+            np.round(self.weights_, 4), self.bias_, result.success,
+        )
+
+    def predict(self, X: np.ndarray) -> np.ndarray:
+        if not self._fitted or self.weights_ is None or self.bias_ is None:
+            raise RuntimeError("MultivariateLogisticCalibrator not fitted.")
+        X = self._as_matrix(X)
+        return np.clip(expit(X @ self.weights_ + self.bias_), 0.0, 1.0)
+
+    def is_fitted(self) -> bool:
+        return self._fitted
+
+
+def samples_to_feature_matrix(samples: List[CalibrationSample]) -> np.ndarray:
+    """Stack Method C feature vectors into an (n, 3) array."""
+    if not samples:
+        return np.empty((0, len(MULTIVARIATE_FEATURES)))
+    return np.array([s.feature_vector() for s in samples], dtype=float)
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # CalibrationComparison
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -402,6 +561,15 @@ class CalibrationComparison:
         Fitted sigmoid parameters.
     limitation : str or None
         Human-readable dataset limitation note.
+    multivariate_brier / multivariate_ece : float
+        Method C metrics. Copies of the raw metrics when not fitted.
+    multivariate_fitted : bool
+        False when labels are constant OR the samples lack the extra
+        Phase 5 signals.
+    multivariate_bins : list[ECEBin]
+    multivariate_weights : list[float] or None
+        Fitted [w_raw_conf, w_self_consistency, w_norm_entropy].
+    multivariate_bias : float or None
     """
 
     dataset_name: str
@@ -430,7 +598,24 @@ class CalibrationComparison:
 
     limitation: Optional[str] = None
 
+    # Method C (multivariate). Defaulted so older call sites still construct.
+    multivariate_brier: float = 0.25
+    multivariate_ece: float = 0.0
+    multivariate_fitted: bool = False
+    multivariate_bins: List[ECEBin] = field(default_factory=list)
+    multivariate_weights: Optional[List[float]] = None
+    multivariate_bias: Optional[float] = None
+
     _NOT_FITTED_MARKER = "—"
+    _METHODS = ("raw", "logistic", "isotonic", "multivariate")
+
+    def fitted(self, method: str) -> bool:
+        """Whether ``method`` produced genuine calibrated predictions."""
+        if method not in self._METHODS:
+            raise ValueError(f"Unknown method '{method}'")
+        if method == "raw":
+            return True
+        return bool(getattr(self, f"{method}_fitted"))
 
     def metric_str(self, method: str, metric: str, precision: int = 4) -> str:
         """
@@ -445,16 +630,12 @@ class CalibrationComparison:
 
         Parameters
         ----------
-        method : {"raw", "logistic", "isotonic"}
+        method : {"raw", "logistic", "isotonic", "multivariate"}
         metric : {"brier", "ece"}
         """
-        if method not in ("raw", "logistic", "isotonic"):
-            raise ValueError(f"Unknown method '{method}'")
         if metric not in ("brier", "ece"):
             raise ValueError(f"Unknown metric '{metric}'")
-        if method == "logistic" and not self.logistic_fitted:
-            return self._NOT_FITTED_MARKER
-        if method == "isotonic" and not self.isotonic_fitted:
+        if not self.fitted(method):
             return self._NOT_FITTED_MARKER
         return f"{getattr(self, f'{method}_{metric}'):.{precision}f}"
 
@@ -485,8 +666,10 @@ def calibrate_dataset(
     Steps:
     1. Split into train (70%) / eval (30%) sets.
     2. Check label variance — skip fitting if constant labels.
-    3. Fit LogisticCalibrator and IsotonicCalibrator on train.
-    4. Evaluate raw, logistic, isotonic on eval set.
+    3. Fit LogisticCalibrator and IsotonicCalibrator on train, plus
+       MultivariateLogisticCalibrator when every sample carries the extra
+       Phase 5 signals.
+    4. Evaluate raw, logistic, isotonic, multivariate on eval set.
     5. Return CalibrationComparison with all metrics.
     """
     limitation: Optional[str] = None
@@ -525,29 +708,48 @@ def calibrate_dataset(
 
     log_cal = LogisticCalibrator()
     iso_cal = IsotonicCalibrator()
+    multi_cal = MultivariateLogisticCalibrator()
     raw_base = RawBaseline()
 
     if len(X_train) >= 1:
         log_cal.fit(X_train, y_train)
         iso_cal.fit(X_train, y_train)
 
+    # Method C needs the extra Phase 5 signals on every sample; skip (not
+    # impute) when any are missing so the ablation stays honest.
+    has_multi = all(s.has_multivariate_features() for s in samples)
+    if has_multi and len(X_train) >= 1:
+        multi_cal.fit(samples_to_feature_matrix(train_samples), y_train)
+    elif not has_multi:
+        logger.info(
+            "Calibration '%s': samples lack self_consistency/normalized_entropy; "
+            "multivariate calibrator skipped.", dataset_name,
+        )
+
     raw_preds = raw_base.predict(X_eval)
     log_preds = log_cal.predict(X_eval) if log_cal.a_ is not None else raw_preds.copy()
     iso_preds = iso_cal.predict(X_eval) if iso_cal.is_fitted() else raw_preds.copy()
+    multi_preds = (
+        multi_cal.predict(samples_to_feature_matrix(eval_samples))
+        if multi_cal.is_fitted() else raw_preds.copy()
+    )
 
     raw_b = brier_score(raw_preds, y_eval)
     log_b = brier_score(log_preds, y_eval)
     iso_b = brier_score(iso_preds, y_eval)
+    multi_b = brier_score(multi_preds, y_eval)
 
     raw_ece, raw_bins = expected_calibration_error(raw_preds, y_eval, n_ece_bins)
     log_ece, log_bins = expected_calibration_error(log_preds, y_eval, n_ece_bins)
     iso_ece, iso_bins = expected_calibration_error(iso_preds, y_eval, n_ece_bins)
+    multi_ece, multi_bins = expected_calibration_error(multi_preds, y_eval, n_ece_bins)
 
     logger.info(
         "Calibration '%s': train=%d eval=%d base=%.3f | "
-        "Brier raw=%.4f log=%.4f iso=%.4f | ECE raw=%.4f log=%.4f iso=%.4f",
+        "Brier raw=%.4f log=%.4f iso=%.4f multi=%.4f | "
+        "ECE raw=%.4f log=%.4f iso=%.4f multi=%.4f",
         dataset_name, len(train_samples), len(eval_samples), base_rate,
-        raw_b, log_b, iso_b, raw_ece, log_ece, iso_ece,
+        raw_b, log_b, iso_b, multi_b, raw_ece, log_ece, iso_ece, multi_ece,
     )
 
     return CalibrationComparison(
@@ -564,6 +766,18 @@ def calibrate_dataset(
         isotonic_ece=round(iso_ece, 4),
         logistic_fitted=log_cal.is_fitted(),
         isotonic_fitted=iso_cal.is_fitted(),
+        multivariate_brier=round(multi_b, 4),
+        multivariate_ece=round(multi_ece, 4),
+        multivariate_fitted=multi_cal.is_fitted(),
+        multivariate_bins=multi_bins,
+        multivariate_weights=(
+            [round(float(w), 4) for w in multi_cal.weights_]
+            if multi_cal.is_fitted() and multi_cal.weights_ is not None else None
+        ),
+        multivariate_bias=(
+            round(multi_cal.bias_, 4)
+            if multi_cal.is_fitted() and multi_cal.bias_ is not None else None
+        ),
         raw_bins=raw_bins,
         logistic_bins=log_bins,
         isotonic_bins=iso_bins,
@@ -595,20 +809,23 @@ def print_calibration_report(comp: CalibrationComparison) -> None:
     print(f"\n  {'Method':<12} {'Brier':>9} {'ECE':>9} {'Status':>10}")
     print(f"  {'─' * 12} {'─' * 9} {'─' * 9} {'─' * 10}")
     print(f"  {'raw':<12} {comp.raw_brier:>9.4f} {comp.raw_ece:>9.4f} {'(baseline)':>10}")
-    log_status = "fitted" if comp.logistic_fitted else "skipped"
-    iso_status = "fitted" if comp.isotonic_fitted else "skipped"
-    print(f"  {'logistic':<12} {comp.logistic_brier:>9.4f} {comp.logistic_ece:>9.4f} {log_status:>10}")
-    print(f"  {'isotonic':<12} {comp.isotonic_brier:>9.4f} {comp.isotonic_ece:>9.4f} {iso_status:>10}")
+    for method in ("logistic", "isotonic", "multivariate"):
+        status = "fitted" if comp.fitted(method) else "skipped"
+        print(f"  {method:<12} {comp.metric_str(method, 'brier'):>9} "
+              f"{comp.metric_str(method, 'ece'):>9} {status:>10}")
 
     if comp.logistic_a is not None and comp.logistic_fitted:
         print(f"\n  Logistic params: sigmoid({comp.logistic_a:.4f} × p + {comp.logistic_b:.4f})")
+    if comp.multivariate_fitted and comp.multivariate_weights is not None:
+        terms = " + ".join(
+            f"{w:.4f}·{name}" for w, name in zip(comp.multivariate_weights, MULTIVARIATE_FEATURES)
+        )
+        print(f"  Multivariate  : sigmoid({terms} + {comp.multivariate_bias:.4f})")
 
-    if comp.logistic_fitted or comp.isotonic_fitted:
-        briers = {
-            "raw": comp.raw_brier,
-            "logistic": comp.logistic_brier,
-            "isotonic": comp.isotonic_brier,
-        }
+    fitted_methods = [m for m in ("logistic", "isotonic", "multivariate") if comp.fitted(m)]
+    if fitted_methods:
+        briers = {"raw": comp.raw_brier}
+        briers.update({m: getattr(comp, f"{m}_brier") for m in fitted_methods})
         best = min(briers, key=briers.get)
         print(f"  Best method (Brier): {best.upper()}")
 

@@ -38,11 +38,12 @@ from src.calibration.calibrator import CalibrationComparison
 from src.calibration.metrics import ECEBin
 
 
-# Colour scheme for the three methods
+# Colour scheme for the four methods
 _COLOURS = {
-    "raw": "#e74c3c",       # red
-    "logistic": "#2980b9",  # blue
-    "isotonic": "#27ae60",  # green
+    "raw": "#e74c3c",           # red
+    "logistic": "#2980b9",      # blue
+    "isotonic": "#27ae60",      # green
+    "multivariate": "#8e44ad",  # purple
 }
 
 _DIAGONAL_COLOUR = "#7f8c8d"  # grey
@@ -56,8 +57,8 @@ def plot_reliability_diagram(
     """
     Create and save a reliability diagram for one dataset.
 
-    Plots raw, logistic, and isotonic calibration curves against the
-    perfect-calibration diagonal.
+    Plots raw, logistic, isotonic and (when fitted) multivariate
+    calibration curves against the perfect-calibration diagonal.
 
     Parameters
     ----------
@@ -90,6 +91,9 @@ def plot_reliability_diagram(
         _plot_bins(ax, comparison.logistic_bins, "logistic", "Logistic calibration")
     if comparison.isotonic_fitted:
         _plot_bins(ax, comparison.isotonic_bins, "isotonic", "Isotonic calibration")
+    if comparison.multivariate_fitted:
+        _plot_bins(ax, comparison.multivariate_bins, "multivariate",
+                   "Multivariate (conf + consistency + entropy)")
 
     # Annotations
     ax.set_xlim(0, 1)
@@ -121,6 +125,12 @@ def plot_reliability_diagram(
             color=_COLOURS["isotonic"],
             label=f"Isotonic  Brier={comparison.isotonic_brier:.4f}  "
                   f"ECE={comparison.isotonic_ece:.4f}",
+        ))
+    if comparison.multivariate_fitted:
+        legend_lines.append(mpatches.Patch(
+            color=_COLOURS["multivariate"],
+            label=f"Multivariate  Brier={comparison.multivariate_brier:.4f}  "
+                  f"ECE={comparison.multivariate_ece:.4f}",
         ))
 
     ax.legend(handles=legend_lines, loc="upper left", fontsize=9)
@@ -160,20 +170,36 @@ def plot_brier_comparison(
     datasets = [c.dataset_name for c in valid]
     n_ds = len(datasets)
     x = np.arange(n_ds)
-    width = 0.25
+
+    # Fourth bar only when at least one dataset fitted Method C; a not-fitted
+    # multivariate_brier is a copy of raw and must not be drawn as a result.
+    show_multi = any(c.multivariate_fitted for c in valid)
+    n_bars = 4 if show_multi else 3
+    width = 0.8 / n_bars
+    offsets = (np.arange(n_bars) - (n_bars - 1) / 2.0) * width
 
     fig, ax = plt.subplots(figsize=(max(6, 3 * n_ds), 5))
 
+    # A not-fitted method's Brier is a copy of raw (or 0 for the degenerate
+    # logistic fallback), not a result: draw no bar rather than a wrong one.
     raw_scores = [c.raw_brier for c in valid]
-    log_scores = [c.logistic_brier for c in valid]
-    iso_scores = [c.isotonic_brier for c in valid]
+    log_scores = [c.logistic_brier if c.logistic_fitted else 0.0 for c in valid]
+    iso_scores = [c.isotonic_brier if c.isotonic_fitted else 0.0 for c in valid]
 
-    bars_raw = ax.bar(x - width, raw_scores, width, label="Raw",
+    bars_raw = ax.bar(x + offsets[0], raw_scores, width, label="Raw",
                       color=_COLOURS["raw"], alpha=0.8)
-    bars_log = ax.bar(x, log_scores, width, label="Logistic",
+    bars_log = ax.bar(x + offsets[1], log_scores, width, label="Logistic",
                       color=_COLOURS["logistic"], alpha=0.8)
-    bars_iso = ax.bar(x + width, iso_scores, width, label="Isotonic",
+    bars_iso = ax.bar(x + offsets[2], iso_scores, width, label="Isotonic",
                       color=_COLOURS["isotonic"], alpha=0.8)
+    all_bars = [bars_raw, bars_log, bars_iso]
+    all_scores = [v for v in raw_scores + log_scores + iso_scores if v > 0]
+    if show_multi:
+        multi_scores = [c.multivariate_brier if c.multivariate_fitted else 0.0 for c in valid]
+        bars_multi = ax.bar(x + offsets[3], multi_scores, width, label="Multivariate",
+                            color=_COLOURS["multivariate"], alpha=0.8)
+        all_bars.append(bars_multi)
+        all_scores += [v for v in multi_scores if v > 0]
 
     ax.set_xlabel("Dataset")
     ax.set_ylabel("Brier Score (lower = better)")
@@ -182,12 +208,14 @@ def plot_brier_comparison(
     ax.set_xticklabels([d.replace("_", "\n") for d in datasets])
     ax.legend()
     ax.grid(axis="y", alpha=0.3)
-    ax.set_ylim(0, max(max(raw_scores), max(log_scores), max(iso_scores)) * 1.2 + 0.01)
+    ax.set_ylim(0, max(all_scores) * 1.2 + 0.01)
 
     # Value labels on bars
-    for bars in [bars_raw, bars_log, bars_iso]:
+    for bars in all_bars:
         for bar in bars:
             h = bar.get_height()
+            if h <= 0:
+                continue
             ax.text(
                 bar.get_x() + bar.get_width() / 2.0,
                 h + 0.003,

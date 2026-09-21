@@ -151,10 +151,9 @@ def main() -> None:
         for comp in comparisons:
             ds = comp.dataset_name
             print(f"  {ds:<18} {'raw':<12} {comp.raw_brier:>9.4f} {comp.raw_ece:>9.4f} {'(baseline)':>8}")
-            log_s = "yes" if comp.logistic_fitted else "no"
-            iso_s = "yes" if comp.isotonic_fitted else "no"
-            print(f"  {'':<18} {'logistic':<12} {comp.metric_str('logistic', 'brier'):>9} {comp.metric_str('logistic', 'ece'):>9} {log_s:>8}")
-            print(f"  {'':<18} {'isotonic':<12} {comp.metric_str('isotonic', 'brier'):>9} {comp.metric_str('isotonic', 'ece'):>9} {iso_s:>8}")
+            for method in ("logistic", "isotonic", "multivariate"):
+                fitted_s = "yes" if comp.fitted(method) else "no"
+                print(f"  {'':<18} {method:<12} {comp.metric_str(method, 'brier'):>9} {comp.metric_str(method, 'ece'):>9} {fitted_s:>8}")
 
         # Brier comparison plot
         valid = [c for c in comparisons if c.logistic_fitted]

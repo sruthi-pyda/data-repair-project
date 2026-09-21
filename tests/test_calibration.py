@@ -31,15 +31,18 @@ import pandas as pd
 import pytest
 
 from src.calibration.calibrator import (
+    MULTIVARIATE_FEATURES,
     CalibrationBuilder,
     CalibrationComparison,
     CalibrationSample,
     IsotonicCalibrator,
     LogisticCalibrator,
+    MultivariateLogisticCalibrator,
     RawBaseline,
     _ADULT_LIMITATION,
     calibrate_dataset,
     print_calibration_report,
+    samples_to_feature_matrix,
     train_eval_split,
 )
 from src.calibration.metrics import (
@@ -78,6 +81,8 @@ def _make_unc_record(
     top_candidate,
     raw_confidence: float = 0.7,
     dataset: str = "test",
+    self_consistency: float = 1.0,
+    normalized_entropy: float = 0.3,
 ) -> UncertaintyRecord:
     return UncertaintyRecord(
         dataset=dataset,
@@ -88,11 +93,39 @@ def _make_unc_record(
         repair_method="test",
         top_candidate=top_candidate,
         raw_confidence=raw_confidence,
-        self_consistency=1.0,
+        self_consistency=self_consistency,
         entropy=0.3,
-        normalized_entropy=0.3,
+        normalized_entropy=normalized_entropy,
         n_samples=5,
     )
+
+
+def _make_multivariate_samples(
+    n: int = 200,
+    seed: int = 42,
+    entropy_informative: bool = True,
+) -> List[CalibrationSample]:
+    """
+    Synthetic samples where raw_confidence is a weak signal and
+    normalized_entropy is (optionally) a strong one, so a calibrator that
+    uses entropy should beat one that only sees raw_confidence.
+    """
+    rng = random.Random(seed)
+    out = []
+    for i in range(n):
+        conf = rng.uniform(0.3, 0.9)
+        ent = rng.uniform(0.0, 1.0)
+        cons = rng.uniform(0.4, 1.0)
+        if entropy_informative:
+            p_correct = 0.15 + 0.2 * conf + 0.6 * (1.0 - ent)
+        else:
+            p_correct = 0.15 + 0.7 * conf
+        correct = 1 if rng.random() < min(max(p_correct, 0.0), 1.0) else 0
+        out.append(CalibrationSample(
+            "test", i, "col", conf, correct,
+            self_consistency=cons, normalized_entropy=ent,
+        ))
+    return out
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -650,11 +683,259 @@ class TestCalibrateDataset:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# Section 9b: MultivariateLogisticCalibrator (CLAUDE.md §5.3)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+class TestCalibrationSampleMultivariateFields:
+    def test_positional_construction_still_works(self):
+        """Existing call sites pass five positionals; extras must default."""
+        s = CalibrationSample("ds", 1, "col", 0.7, 1)
+        assert s.self_consistency is None
+        assert s.normalized_entropy is None
+        assert not s.has_multivariate_features()
+
+    def test_feature_vector_order_matches_constant(self):
+        s = CalibrationSample("ds", 1, "col", 0.7, 1, self_consistency=0.8, normalized_entropy=0.2)
+        assert s.has_multivariate_features()
+        assert s.feature_vector() == [0.7, 0.8, 0.2]
+        assert MULTIVARIATE_FEATURES == ("raw_confidence", "self_consistency", "normalized_entropy")
+
+    def test_feature_vector_raises_when_missing(self):
+        s = CalibrationSample("ds", 1, "col", 0.7, 1, self_consistency=0.8)
+        with pytest.raises(ValueError):
+            s.feature_vector()
+
+    def test_samples_to_feature_matrix_shape(self):
+        samples = _make_multivariate_samples(25)
+        X = samples_to_feature_matrix(samples)
+        assert X.shape == (25, 3)
+
+    def test_samples_to_feature_matrix_empty(self):
+        X = samples_to_feature_matrix([])
+        assert X.shape == (0, 3)
+
+
+class TestCalibrationBuilderPopulatesSignals:
+    def test_builder_copies_phase5_signals(self):
+        builder = CalibrationBuilder()
+        clean_df = pd.DataFrame({"col": [10, 20, 30]})
+        unc = [
+            _make_unc_record(i, "col", top_candidate=i * 10,
+                             self_consistency=0.5 + 0.1 * i,
+                             normalized_entropy=0.1 * i)
+            for i in range(3)
+        ]
+        samples = builder.build(unc, clean_df, clean_df.copy(), "test")
+        assert len(samples) == 3
+        for i, s in enumerate(samples):
+            assert s.self_consistency == pytest.approx(0.5 + 0.1 * i)
+            assert s.normalized_entropy == pytest.approx(0.1 * i)
+            assert s.has_multivariate_features()
+
+
+class TestMultivariateLogisticCalibrator:
+    def test_name_and_features(self):
+        cal = MultivariateLogisticCalibrator()
+        assert cal.name == "multivariate"
+        assert cal.feature_names == MULTIVARIATE_FEATURES
+        assert not cal.is_fitted()
+
+    def test_negative_l2_rejected(self):
+        with pytest.raises(ValueError):
+            MultivariateLogisticCalibrator(l2=-1.0)
+
+    def test_predict_before_fit_raises(self):
+        cal = MultivariateLogisticCalibrator()
+        with pytest.raises(RuntimeError):
+            cal.predict(np.zeros((2, 3)))
+
+    def test_rejects_1d_input(self):
+        cal = MultivariateLogisticCalibrator()
+        with pytest.raises(ValueError):
+            cal.fit(np.array([0.1, 0.5, 0.9]), np.array([0, 1, 1]))
+
+    def test_rejects_wrong_feature_count(self):
+        cal = MultivariateLogisticCalibrator()
+        with pytest.raises(ValueError):
+            cal.fit(np.zeros((5, 2)), np.array([0, 1, 0, 1, 0]))
+
+    def test_rejects_length_mismatch(self):
+        cal = MultivariateLogisticCalibrator()
+        with pytest.raises(ValueError):
+            cal.fit(np.zeros((5, 3)), np.array([0, 1]))
+
+    def test_constant_labels_not_fitted(self):
+        cal = MultivariateLogisticCalibrator()
+        cal.fit(np.random.default_rng(0).random((30, 3)), np.zeros(30))
+        assert not cal.is_fitted()
+        with pytest.raises(RuntimeError):
+            cal.predict(np.zeros((1, 3)))
+
+    def test_empty_input_not_fitted(self):
+        cal = MultivariateLogisticCalibrator()
+        cal.fit(np.empty((0, 3)), np.empty(0))
+        assert not cal.is_fitted()
+
+    def test_predictions_in_unit_interval(self):
+        samples = _make_multivariate_samples(150)
+        X = samples_to_feature_matrix(samples)
+        y = np.array([s.correct for s in samples], dtype=float)
+        cal = MultivariateLogisticCalibrator()
+        cal.fit(X, y)
+        assert cal.is_fitted()
+        preds = cal.predict(X)
+        assert preds.shape == (150,)
+        assert np.all(preds >= 0.0) and np.all(preds <= 1.0)
+
+    def test_deterministic(self):
+        samples = _make_multivariate_samples(120)
+        X = samples_to_feature_matrix(samples)
+        y = np.array([s.correct for s in samples], dtype=float)
+        c1, c2 = MultivariateLogisticCalibrator(), MultivariateLogisticCalibrator()
+        c1.fit(X, y)
+        c2.fit(X, y)
+        assert np.allclose(c1.weights_, c2.weights_)
+        assert math.isclose(c1.bias_, c2.bias_)
+
+    def test_learns_entropy_sign(self):
+        """Higher normalized_entropy → less likely correct → negative weight."""
+        samples = _make_multivariate_samples(400, entropy_informative=True)
+        X = samples_to_feature_matrix(samples)
+        y = np.array([s.correct for s in samples], dtype=float)
+        cal = MultivariateLogisticCalibrator()
+        cal.fit(X, y)
+        w_entropy = cal.weights_[MULTIVARIATE_FEATURES.index("normalized_entropy")]
+        assert w_entropy < 0
+
+    def test_beats_univariate_when_entropy_informative(self):
+        """The whole point of §5.3: extra signals must lower Brier when they
+        carry information raw_confidence does not."""
+        train = _make_multivariate_samples(400, seed=1, entropy_informative=True)
+        evalset = _make_multivariate_samples(400, seed=2, entropy_informative=True)
+
+        X_tr_1d = np.array([s.raw_confidence for s in train])
+        X_ev_1d = np.array([s.raw_confidence for s in evalset])
+        y_tr = np.array([s.correct for s in train], dtype=float)
+        y_ev = np.array([s.correct for s in evalset], dtype=float)
+
+        uni = LogisticCalibrator()
+        uni.fit(X_tr_1d, y_tr)
+        multi = MultivariateLogisticCalibrator()
+        multi.fit(samples_to_feature_matrix(train), y_tr)
+
+        b_uni = brier_score(uni.predict(X_ev_1d), y_ev)
+        b_multi = brier_score(multi.predict(samples_to_feature_matrix(evalset)), y_ev)
+        assert b_multi < b_uni
+
+    def test_does_not_degrade_much_when_extra_signals_uninformative(self):
+        """When only raw_confidence matters, Method C should be close to
+        Method A rather than overfitting noise (L2 keeps it in check)."""
+        train = _make_multivariate_samples(400, seed=3, entropy_informative=False)
+        evalset = _make_multivariate_samples(400, seed=4, entropy_informative=False)
+        X_tr_1d = np.array([s.raw_confidence for s in train])
+        X_ev_1d = np.array([s.raw_confidence for s in evalset])
+        y_tr = np.array([s.correct for s in train], dtype=float)
+        y_ev = np.array([s.correct for s in evalset], dtype=float)
+
+        uni = LogisticCalibrator()
+        uni.fit(X_tr_1d, y_tr)
+        multi = MultivariateLogisticCalibrator()
+        multi.fit(samples_to_feature_matrix(train), y_tr)
+
+        b_uni = brier_score(uni.predict(X_ev_1d), y_ev)
+        b_multi = brier_score(multi.predict(samples_to_feature_matrix(evalset)), y_ev)
+        assert b_multi <= b_uni + 0.01
+
+
+class TestCalibrateDatasetMultivariate:
+    def test_fitted_and_reported_when_signals_present(self):
+        samples = _make_multivariate_samples(200)
+        comp = calibrate_dataset(samples, "test_ds")
+        assert comp.multivariate_fitted
+        assert comp.fitted("multivariate")
+        assert 0.0 <= comp.multivariate_brier <= 1.0
+        assert 0.0 <= comp.multivariate_ece <= 1.0
+        assert comp.multivariate_weights is not None
+        assert len(comp.multivariate_weights) == 3
+        assert comp.multivariate_bias is not None
+        assert comp.metric_str("multivariate", "brier") == f"{comp.multivariate_brier:.4f}"
+
+    def test_skipped_when_any_sample_lacks_signals(self):
+        """Never impute missing Phase 5 signals — skip Method C instead."""
+        samples = _make_multivariate_samples(100)
+        samples[10] = CalibrationSample("test", 10, "col", 0.6, 1)  # no extras
+        comp = calibrate_dataset(samples, "test_ds")
+        assert comp.logistic_fitted  # Methods A/B unaffected
+        assert not comp.multivariate_fitted
+        assert comp.multivariate_weights is None
+        assert comp.metric_str("multivariate", "brier") == "—"
+
+    def test_skipped_on_constant_labels(self):
+        samples = _make_multivariate_samples(60)
+        for s in samples:
+            s.correct = 0
+        comp = calibrate_dataset(samples, "test_ds")
+        assert not comp.multivariate_fitted
+
+    def test_legacy_samples_still_calibrate(self):
+        """Samples built without the new fields behave exactly as before."""
+        samples = _make_samples([0.4, 0.6, 0.8] * 30, [0, 1, 1] * 30)
+        comp = calibrate_dataset(samples, "test_ds")
+        assert comp.logistic_fitted
+        assert not comp.multivariate_fitted
+
+    def test_comparison_constructs_without_multivariate_fields(self):
+        """Older code constructing CalibrationComparison must not break."""
+        comp = CalibrationComparison(
+            dataset_name="x", n_train=0, n_eval=0, n_positive_eval=0, base_rate=0.0,
+            raw_brier=0.25, logistic_brier=0.25, isotonic_brier=0.25,
+            raw_ece=0.0, logistic_ece=0.0, isotonic_ece=0.0,
+            logistic_fitted=False, isotonic_fitted=False,
+        )
+        assert not comp.multivariate_fitted
+        assert comp.metric_str("multivariate", "ece") == "—"
+
+    def test_fitted_rejects_unknown_method(self):
+        samples = _make_multivariate_samples(50)
+        comp = calibrate_dataset(samples, "test_ds")
+        with pytest.raises(ValueError):
+            comp.fitted("platt")
+
+    def test_report_prints_multivariate_row(self, capsys):
+        samples = _make_multivariate_samples(120)
+        comp = calibrate_dataset(samples, "test_ds")
+        print_calibration_report(comp)
+        out = capsys.readouterr().out
+        assert "multivariate" in out
+        assert "Multivariate  : sigmoid(" in out
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # Section 10: Data leakage prevention
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
 class TestDataLeakagePrevention:
+    def test_multivariate_fit_signature_no_clean_df(self):
+        import inspect
+        params = list(inspect.signature(MultivariateLogisticCalibrator.fit).parameters)
+        assert "clean_df" not in params
+        assert "clean" not in " ".join(params)
+
+    def test_multivariate_predict_signature_no_clean_df(self):
+        import inspect
+        params = list(inspect.signature(MultivariateLogisticCalibrator.predict).parameters)
+        assert "clean_df" not in params
+
+    def test_multivariate_features_are_phase5_signals_only(self):
+        """Every Method C feature must be a field of UncertaintyRecord, which
+        is produced without clean_df. No feature may reference clean data."""
+        unc_fields = UncertaintyRecord.__dataclass_fields__
+        for name in MULTIVARIATE_FEATURES:
+            assert name in unc_fields, name
+            assert "clean" not in name.lower()
+
     def test_logistic_fit_signature_no_clean_df(self):
         import inspect
         sig = inspect.signature(LogisticCalibrator.fit)
