@@ -601,6 +601,43 @@ class TestCalibrateDataset:
         comp = calibrate_dataset(samples, "test_ds")
         assert comp.isotonic_fitted
 
+    # ── metric_str: never print a not-fitted calibrator as a number ──────────
+
+    def test_metric_str_not_fitted_prints_dash(self):
+        """Unfitted calibrators must render as '—', not a misleading 0.0000."""
+        samples = _make_samples([0.6, 0.7, 0.8] * 20, [0] * 60)
+        comp = calibrate_dataset(samples, "test_ds")
+        assert not comp.logistic_fitted and not comp.isotonic_fitted
+        for method in ("logistic", "isotonic"):
+            for metric in ("brier", "ece"):
+                assert comp.metric_str(method, metric) == "—"
+
+    def test_metric_str_raw_always_numeric(self):
+        """Raw baseline needs no fitting, so it always renders as a number."""
+        samples = _make_samples([0.6, 0.7, 0.8] * 20, [0] * 60)
+        comp = calibrate_dataset(samples, "test_ds")
+        assert comp.metric_str("raw", "brier") == f"{comp.raw_brier:.4f}"
+        assert comp.metric_str("raw", "ece") == f"{comp.raw_ece:.4f}"
+
+    def test_metric_str_fitted_matches_field(self):
+        samples = self._make_mixed_samples(100)
+        comp = calibrate_dataset(samples, "test_ds")
+        assert comp.metric_str("logistic", "brier") == f"{comp.logistic_brier:.4f}"
+        assert comp.metric_str("isotonic", "ece") == f"{comp.isotonic_ece:.4f}"
+        assert comp.metric_str("isotonic", "ece", precision=2) == f"{comp.isotonic_ece:.2f}"
+
+    def test_metric_str_empty_samples_prints_dash(self):
+        comp = calibrate_dataset([], "test_ds")
+        assert comp.metric_str("logistic", "brier") == "—"
+
+    def test_metric_str_rejects_unknown_names(self):
+        samples = self._make_mixed_samples(50)
+        comp = calibrate_dataset(samples, "test_ds")
+        with pytest.raises(ValueError):
+            comp.metric_str("platt", "brier")
+        with pytest.raises(ValueError):
+            comp.metric_str("raw", "accuracy")
+
     def test_base_rate_computed(self):
         samples = _make_samples([0.5] * 10, [1] * 10)
         comp = calibrate_dataset(samples, "test_ds")

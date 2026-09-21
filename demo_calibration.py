@@ -153,8 +153,8 @@ def main() -> None:
             print(f"  {ds:<18} {'raw':<12} {comp.raw_brier:>9.4f} {comp.raw_ece:>9.4f} {'(baseline)':>8}")
             log_s = "yes" if comp.logistic_fitted else "no"
             iso_s = "yes" if comp.isotonic_fitted else "no"
-            print(f"  {'':<18} {'logistic':<12} {comp.logistic_brier:>9.4f} {comp.logistic_ece:>9.4f} {log_s:>8}")
-            print(f"  {'':<18} {'isotonic':<12} {comp.isotonic_brier:>9.4f} {comp.isotonic_ece:>9.4f} {iso_s:>8}")
+            print(f"  {'':<18} {'logistic':<12} {comp.metric_str('logistic', 'brier'):>9} {comp.metric_str('logistic', 'ece'):>9} {log_s:>8}")
+            print(f"  {'':<18} {'isotonic':<12} {comp.metric_str('isotonic', 'brier'):>9} {comp.metric_str('isotonic', 'ece'):>9} {iso_s:>8}")
 
         # Brier comparison plot
         valid = [c for c in comparisons if c.logistic_fitted]

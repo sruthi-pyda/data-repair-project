@@ -430,6 +430,34 @@ class CalibrationComparison:
 
     limitation: Optional[str] = None
 
+    _NOT_FITTED_MARKER = "—"
+
+    def metric_str(self, method: str, metric: str, precision: int = 4) -> str:
+        """
+        Format a Brier/ECE value for display, or ``"—"`` when the calibrator
+        behind it was never fitted.
+
+        When a calibrator refuses to fit (e.g. Adult, where every label is 0)
+        the stored ``logistic_*`` / ``isotonic_*`` values are copies of the raw
+        metrics, not genuine calibrated scores. Printing them as numbers reads
+        like a perfect ``0.0000`` in a results table. Use this instead of
+        formatting the field directly.
+
+        Parameters
+        ----------
+        method : {"raw", "logistic", "isotonic"}
+        metric : {"brier", "ece"}
+        """
+        if method not in ("raw", "logistic", "isotonic"):
+            raise ValueError(f"Unknown method '{method}'")
+        if metric not in ("brier", "ece"):
+            raise ValueError(f"Unknown metric '{metric}'")
+        if method == "logistic" and not self.logistic_fitted:
+            return self._NOT_FITTED_MARKER
+        if method == "isotonic" and not self.isotonic_fitted:
+            return self._NOT_FITTED_MARKER
+        return f"{getattr(self, f'{method}_{metric}'):.{precision}f}"
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Main pipeline function
