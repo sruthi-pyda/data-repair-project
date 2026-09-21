@@ -65,7 +65,7 @@ evaluator penalises the policy for correctly ignoring false alarms.
 ### Step 1 — Detection calibrator (new module, purely additive)
 `src/calibration/detection_calibrator.py`
 
-- [ ] 1.1 `DetectionLabelBuilder.build(detections, clean_df, dirty_df) -> List[int]`
+- [~] 1.1 `DetectionLabelBuilder.build(detections, clean_df, dirty_df) -> List[int]`
       — the ONLY reader of `clean_df` here; label = dirty ≠ clean via the
       Phase 10 `ValueComparator` (NaN==NaN, numeric tolerance).
 - [ ] 1.2 `DetectionCalibrator(group_by=("detection_method",), smoothing=1.0)`
@@ -117,9 +117,9 @@ evaluator penalises the policy for correctly ignoring false alarms.
 - [ ] 3.3 Tests: abstain on clean cell → 0; on corrupted → c; existing
       all-abstain tests untouched and still pass (their cells are
       corrupted); Adult always-LEAVE == 0.
-- [ ] 3.4 Commit. **Flag to Sruthi**: Phase 10 semantic change (only
-      affects rows where abstain fires on a false alarm; BC/SF k=3 numbers
-      unchanged).
+- [ ] 3.4 Commit. Phase 10 semantic change; only affects rows where
+      abstain fires on a false alarm; BC/SF k=3 numbers unchanged. Kept
+      only if Step 6 shows it is better.
 
 ### Step 4 — Runner + cost config
 - [ ] 4.1 `run_pipeline(..., iqr_k=3.0, flag_outliers=None)` (None → per-
@@ -163,12 +163,18 @@ evaluator penalises the policy for correctly ignoring false alarms.
 ### Step 7 — Docs and handoff
 - [ ] 7.1 CLAUDE.md: §2 formulas, §3 (second permitted clean_df reader),
       §4 state, §5.2 resolved. Memory note.
-- [ ] 7.2 Message draft for Sruthi covering Steps 3.4 and 4.3.
+- [ ] 7.2 CLAUDE.md §9: record that the user owns the project now.
 - [ ] 7.3 Commit.
 
 ---
 
-## 2. Decision points (need the user's yes/no before Step 3 / 4)
+## 2. Decision points — RESOLVED 2026-09-22
+
+User now owns the project; no Sruthi sign-off required. Rule: any change
+is kept only if it is **objectively better for the paper's claim**, as
+measured in Step 6. D1–D3 are approved on that condition; Step 6 is the
+gate that keeps or reverts each.
+
 
 D1. Evaluator semantics change (Step 3): realised abstain cost only when
     the cell is truly corrupted. Recommended: yes — it is the only
