@@ -172,8 +172,14 @@ class TestCostConfigFromYaml:
         c = CostConfig.from_yaml(COSTS_YAML, "adult")
         assert c.c_wrong_repair == 10.0
         assert c.c_human_review == 2.0
-        assert c.c_leave_error == 5.0
+        assert c.c_leave_error == 1.0
         assert c.dataset_name == "adult"
+
+    def test_from_yaml_adult_leave_cheaper_than_review(self):
+        """Adult detections are false positives, so leaving the cell alone
+        must be cheaper than review — otherwise abstention is unreachable."""
+        c = CostConfig.from_yaml(COSTS_YAML, "adult")
+        assert c.c_leave_error < c.c_human_review
 
     def test_from_yaml_breast_cancer(self):
         c = CostConfig.from_yaml(COSTS_YAML, "breast_cancer")

@@ -32,6 +32,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import pytest
+from pathlib import Path
 
 from src.decision.policy import (
     DecisionAction,
@@ -697,6 +698,73 @@ class TestFromCostConfig:
         policy = DecisionPolicy.from_cost_config(config)
         result = policy.decide(0.7)
         assert result.action in list(DecisionAction)
+
+
+# ===========================================================================
+# Group 14b: Shipped cost configs (configs/costs.yaml)
+# ===========================================================================
+
+
+COSTS_YAML = Path(__file__).resolve().parent.parent / "configs" / "costs.yaml"
+SHIPPED_DATASETS = ["adult", "breast_cancer", "smartfactory"]
+
+
+def _sweep_actions(policy: DecisionPolicy, steps: int = 1000) -> set:
+    """Every action the policy selects across p in [0, 1]."""
+    return {policy.decide(i / steps).action for i in range(steps + 1)}
+
+
+class TestShippedCostConfigs:
+    """
+    Guard against a degenerate cost table. Because E[HUMAN_REVIEW] and
+    E[ABSTAIN] are both constant in p, a config where every dataset has
+    c_leave_error > c_human_review can never ABSTAIN, and Phase 10
+    comparison tables would silently print 0% abstention on every row.
+    """
+
+    @pytest.mark.parametrize("dataset", SHIPPED_DATASETS)
+    def test_every_shipped_config_loads_into_policy(self, dataset):
+        config = CostConfig.from_yaml(COSTS_YAML, dataset)
+        policy = DecisionPolicy.from_cost_config(config)
+        assert policy.decide(0.5).action in list(DecisionAction)
+
+    @pytest.mark.parametrize("dataset", SHIPPED_DATASETS)
+    def test_auto_repair_reachable_for_every_dataset(self, dataset):
+        config = CostConfig.from_yaml(COSTS_YAML, dataset)
+        policy = DecisionPolicy.from_cost_config(config)
+        assert DecisionAction.AUTO_REPAIR in _sweep_actions(policy)
+
+    def test_abstain_reachable_in_at_least_one_shipped_config(self):
+        reachable = {
+            ds: DecisionAction.ABSTAIN
+            in _sweep_actions(DecisionPolicy.from_cost_config(CostConfig.from_yaml(COSTS_YAML, ds)))
+            for ds in SHIPPED_DATASETS
+        }
+        assert any(reachable.values()), (
+            f"ABSTAIN unreachable under every shipped config: {reachable}. "
+            "At least one dataset must set c_leave_error < c_human_review."
+        )
+
+    def test_adult_abstains_on_low_confidence(self):
+        """Adult detections are false positives with p near 0; the rational
+        action is to leave them alone, not to route them all to a human."""
+        config = CostConfig.from_yaml(COSTS_YAML, "adult")
+        policy = DecisionPolicy.from_cost_config(config)
+        for p in [0.0, 0.05, 0.2, 0.5, 0.85]:
+            assert policy.decide(p).action == DecisionAction.ABSTAIN, p
+
+    def test_adult_still_auto_repairs_on_high_confidence(self):
+        config = CostConfig.from_yaml(COSTS_YAML, "adult")
+        policy = DecisionPolicy.from_cost_config(config)
+        assert policy.decide(0.99).action == DecisionAction.AUTO_REPAIR
+
+    @pytest.mark.parametrize("dataset", ["breast_cancer", "smartfactory"])
+    def test_genuine_corruption_datasets_route_to_human(self, dataset):
+        """Where detections are real errors, low confidence should go to a
+        reviewer rather than be abstained on."""
+        config = CostConfig.from_yaml(COSTS_YAML, dataset)
+        policy = DecisionPolicy.from_cost_config(config)
+        assert policy.decide(0.3).action == DecisionAction.HUMAN_REVIEW
 
 
 # ===========================================================================

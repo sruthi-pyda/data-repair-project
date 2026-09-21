@@ -26,6 +26,12 @@
 #       Accept over Review:  p > 1 - 2/10 = 0.80
 #       Accept over Leave:   p > 1 - 5/10 = 0.50
 #       → ACCEPT if p > 0.80, REVIEW if p ≤ 0.80 (since review(2) < leave(5))
+#
+#   NOTE: REVIEW and LEAVE are both constant in p, so whichever is cheaper
+#   wins at *every* confidence and the other is never selected. A config
+#   with c_leave_error > c_human_review can never LEAVE/ABSTAIN; one with
+#   c_leave_error < c_human_review can never HUMAN_REVIEW. Set the two
+#   relative to each other deliberately per dataset (see adult below).
 
 # ─── Default costs (used when no dataset-specific override exists) ────────────
 
@@ -46,11 +52,17 @@ datasets:
   adult:
     c_wrong_repair: 10
     c_human_review: 2
-    c_leave_error: 5
+    c_leave_error: 1
     note: >
       Adult detections are statistical false positives (fnlwgt IQR outliers).
       True corruption (income label flips) is undetectable from dirty data.
       Calibrated probabilities will be near 0 for all records.
+      c_leave_error is set BELOW c_human_review because a flagged Adult cell
+      is not actually corrupted: leaving it unchanged costs almost nothing,
+      whereas routing every false positive to a reviewer wastes their time.
+      This makes LEAVE_UNCHANGED / ABSTAIN the rational action for p <= 0.90
+      and is the only shipped config in which abstention is reachable.
+      (Originally 5, which made abstention unreachable — changed 2026-09-22.)
 
   breast_cancer:
     c_wrong_repair: 50
