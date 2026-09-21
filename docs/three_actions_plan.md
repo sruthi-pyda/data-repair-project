@@ -65,26 +65,30 @@ evaluator penalises the policy for correctly ignoring false alarms.
 ### Step 1 — Detection calibrator (new module, purely additive)
 `src/calibration/detection_calibrator.py`
 
-- [~] 1.1 `DetectionLabelBuilder.build(detections, clean_df, dirty_df) -> List[int]`
+- [x] 1.1 `DetectionLabelBuilder.build(detections, clean_df, dirty_df) -> List[int]`
       — the ONLY reader of `clean_df` here; label = dirty ≠ clean via the
       Phase 10 `ValueComparator` (NaN==NaN, numeric tolerance).
-- [ ] 1.2 `DetectionCalibrator(group_by=("detection_method",), smoothing=1.0)`
+- [x] 1.2 `DetectionCalibrator(group_by=("detection_method",), smoothing=1.0)`
       — per-group Beta(1,1)-smoothed corruption rate. `fit(records, labels)`,
       `predict(records) -> q`, `is_fitted()`. Unseen group → global rate.
       **Not fitted → q = 1.0** (today's implicit assumption: every flag is
       real). Optional score-bin grouping for the ablation.
-- [ ] 1.3 `calibrate_detections(records, labels, seed, eval_fraction) ->
+- [x] 1.3 `calibrate_detections(records, labels, seed, eval_fraction) ->
       DetectionCalibrationReport` with Brier/ECE of q vs raw
       `detection_score` on the hold-out, per-group table.
-- [ ] 1.4 Tests `tests/test_detection_calibrator.py`: learned rates match
+- [x] 1.4 Tests `tests/test_detection_calibrator.py`: learned rates match
       empirical within smoothing; unseen group; unfitted → 1.0; empty;
       labels all-0 / all-1; determinism; no-leakage (fit/predict signatures,
       builder is sole clean reader); on real BC k=1.5 data q(iqr_outlier) < 0.1
       and q(missing_value) > 0.95.
-- [ ] 1.5 Commit.
+- [x] 1.5 Commit.
+- [ ] 1.6 (Step 6 check) Beta(s,s) prior pulls tiny 100%-corrupted groups
+      toward 0.5 (BC format_check, 3 records → q=0.67). Harmless at current
+      costs (0.67×10 > 5). If Step 6 shows a decision flipped by this, switch
+      to shrinkage toward the global rate: (k + s·g)/(n + s).
 
 ### Step 2 — Policy takes q (Phase 8, then Phase 7), default 1.0
-- [ ] 2.1 `DecisionPolicy.decide(p, corruption_probability=1.0)`; validate
+- [~] 2.1 `DecisionPolicy.decide(p, corruption_probability=1.0)`; validate
       q ∈ [0,1]; `e_abstain = q · c_abstain`; reason string shows
       `q × C_abstain`; `DecisionResult.corruption_probability: float = 1.0`
       appended LAST (frozen dataclass).
