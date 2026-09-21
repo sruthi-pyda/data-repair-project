@@ -12,11 +12,27 @@ For a proposed repair with calibrated probability of correctness p:
 Expected costs:
     E[Cost_auto]    = (1 - p) * C_wrong    — cost if wrong repair is applied
     E[Cost_human]   = C_human              — fixed cost of routing to human
-    E[Cost_abstain] = C_abstain            — fixed cost of leaving error in place
+    E[Cost_abstain] = q * C_abstain        — cost of leaving the cell alone
+
+where q = corruption_probability = P(the flagged cell is genuinely
+corrupted).  Abstaining on a false alarm costs nothing; abstaining on a
+real error costs C_abstain.  q defaults to 1.0, which reproduces the
+original rule (every flagged cell is assumed to be a real error and
+E[Cost_abstain] = C_abstain is flat in p).
 
 The policy selects the minimum expected cost action:
 
     decision = argmin(E[Cost_auto], E[Cost_human], E[Cost_abstain])
+
+Worked example (breast_cancer costs: C_wrong=50, C_human=5, C_abstain=10)
+
+    p = 0.95, q = 1.0   →  auto 2.50, human 5.00, abstain 10.00  →  AUTO_REPAIR
+    p = 0.60, q = 1.0   →  auto 20.0, human 5.00, abstain 10.00  →  HUMAN_REVIEW
+    p = 0.60, q = 0.2   →  auto 20.0, human 5.00, abstain  2.00  →  ABSTAIN
+
+With q = 1 both HUMAN and ABSTAIN are flat lines, so one of them is
+unreachable on every cost config.  A calibrated q < C_human / C_abstain
+is what makes ABSTAIN a live option.
 
 SUPPORTED ACTIONS
 =================
@@ -61,6 +77,8 @@ DATA LEAKAGE RULE
 ==================
 This module does NOT access clean_df at any point.
 The calibrated_probability input must come from the calibration stage.
+The corruption_probability input must likewise come from a calibrator
+fitted on a training split (Phase 6-style); this module never derives it.
 """
 
 from __future__ import annotations
@@ -115,7 +133,8 @@ class DecisionResult:
     expected_cost_human : float
         E[Cost_human] = C_human  (fixed, independent of p)
     expected_cost_abstain : float
-        E[Cost_abstain] = C_abstain  (fixed, independent of p)
+        E[Cost_abstain] = q × C_abstain  (independent of p; q defaults to 1,
+        in which case this is simply C_abstain)
     action : DecisionAction
         The selected minimum-cost action.
     reason : str
@@ -126,6 +145,10 @@ class DecisionResult:
         Human-review cost parameter used.
     c_abstain : float
         Abstention cost parameter used.
+    corruption_probability : float
+        q — calibrated probability the flagged cell is genuinely corrupted,
+        in [0, 1].  Defaults to 1.0 (every flag assumed real), which
+        reproduces the pre-Step-2 behaviour exactly.
     """
 
     calibrated_probability: float
@@ -138,6 +161,7 @@ class DecisionResult:
     c_wrong: float
     c_human: float
     c_abstain: float
+    corruption_probability: float = 1.0
 
 
 # ---------------------------------------------------------------------------
@@ -169,9 +193,13 @@ class DecisionPolicy:
 
         E[Cost_auto]    = (1 - p) * C_wrong
         E[Cost_human]   = C_human              (constant)
-        E[Cost_abstain] = C_abstain            (constant)
+        E[Cost_abstain] = q * C_abstain        (constant in p; q defaults to 1)
 
         decision = argmin(E[Cost_auto], E[Cost_human], E[Cost_abstain])
+
+    q = corruption_probability is supplied per decision (see decide()),
+    not at construction time, because it is a property of the cell, not
+    of the cost configuration.
 
     Parameters
     ----------
@@ -182,7 +210,7 @@ class DecisionPolicy:
         Fixed cost of routing to human review.
         Must be non-negative (>= 0).
     c_abstain : float
-        Fixed cost of abstaining (leaving error unchanged).
+        Cost of abstaining on a genuinely corrupted cell.
         Must be non-negative (>= 0).
 
     Tie-breaking
@@ -244,17 +272,21 @@ class DecisionPolicy:
 
     # ── Core decision ────────────────────────────────────────────────────────
 
-    def decide(self, calibrated_probability: float) -> DecisionResult:
+    def decide(
+        self,
+        calibrated_probability: float,
+        corruption_probability: float = 1.0,
+    ) -> DecisionResult:
         """
         Compute the minimum-cost action for a given calibrated probability.
 
         Formula
         -------
-        Let p = calibrated_probability.
+        Let p = calibrated_probability, q = corruption_probability.
 
             E[Cost_auto]    = (1 - p) * C_wrong
             E[Cost_human]   = C_human
-            E[Cost_abstain] = C_abstain
+            E[Cost_abstain] = q * C_abstain
 
             action = argmin(E[Cost_auto], E[Cost_human], E[Cost_abstain])
 
@@ -263,6 +295,11 @@ class DecisionPolicy:
         calibrated_probability : float
             p — calibrated probability the repair is correct.
             Must be in [0, 1].
+        corruption_probability : float, optional
+            q — calibrated probability the flagged cell is genuinely
+            corrupted.  Must be in [0, 1].  Defaults to 1.0, which makes
+            E[Cost_abstain] = C_abstain and reproduces the original rule
+            exactly.
 
         Returns
         -------
@@ -271,18 +308,24 @@ class DecisionPolicy:
         Raises
         ------
         ValueError
-            If calibrated_probability is outside [0, 1].
+            If calibrated_probability or corruption_probability is outside
+            [0, 1] (NaN and ±inf are rejected by the same check).
         """
         p = float(calibrated_probability)
         if not (0.0 <= p <= 1.0):
             raise ValueError(
                 f"calibrated_probability must be in [0, 1], got {p}"
             )
+        q = float(corruption_probability)
+        if not (0.0 <= q <= 1.0):
+            raise ValueError(
+                f"corruption_probability must be in [0, 1], got {q}"
+            )
 
         p_wrong = 1.0 - p
         e_auto = p_wrong * self.c_wrong
         e_human = self.c_human
-        e_abstain = self.c_abstain
+        e_abstain = q * self.c_abstain
 
         # Select minimum-cost action; on tie, apply documented priority
         candidates: dict = {
@@ -296,7 +339,7 @@ class DecisionPolicy:
         action = min(tied, key=lambda a: _TIE_PRIORITY[a])
 
         reason = self._build_reason(
-            p, p_wrong, e_auto, e_human, e_abstain, action, min_cost
+            p, p_wrong, e_auto, e_human, e_abstain, action, min_cost, q
         )
 
         return DecisionResult(
@@ -310,6 +353,7 @@ class DecisionPolicy:
             c_wrong=self.c_wrong,
             c_human=self.c_human,
             c_abstain=self.c_abstain,
+            corruption_probability=round(q, 10),
         )
 
     def _build_reason(
@@ -321,13 +365,14 @@ class DecisionPolicy:
         e_abstain: float,
         action: DecisionAction,
         min_cost: float,
+        q: float = 1.0,
     ) -> str:
         """Build a human-readable explanation of the decision."""
         lines = [
             f"Calibrated P(correct) = {p:.4f}  →  P(wrong) = {p_wrong:.4f}",
             f"E[Cost_auto]    = {p_wrong:.4f} × {self.c_wrong} = {e_auto:.4f}",
             f"E[Cost_human]   = {e_human:.4f}",
-            f"E[Cost_abstain] = {e_abstain:.4f}",
+            f"E[Cost_abstain] = {q:.4f} × {self.c_abstain} = {e_abstain:.4f}",
             f"Decision: {action.value}  (minimum expected cost = {min_cost:.4f})",
         ]
         return "\n".join(lines)
@@ -337,6 +382,7 @@ class DecisionPolicy:
     def decide_batch(
         self,
         calibrated_probabilities: List[float],
+        corruption_probabilities: Optional[List[float]] = None,
     ) -> List[DecisionResult]:
         """
         Apply the policy to a list of calibrated probabilities.
@@ -345,13 +391,34 @@ class DecisionPolicy:
         ----------
         calibrated_probabilities : list[float]
             Each value must be in [0, 1].
+        corruption_probabilities : list[float], optional
+            One q per record, same order.  None (default) means q = 1.0
+            for every record, i.e. the original behaviour.
 
         Returns
         -------
         list[DecisionResult]
             One result per input probability, in the same order.
+
+        Raises
+        ------
+        ValueError
+            If corruption_probabilities is given and its length differs
+            from calibrated_probabilities.
         """
-        return [self.decide(p) for p in calibrated_probabilities]
+        if corruption_probabilities is None:
+            return [self.decide(p) for p in calibrated_probabilities]
+        if len(corruption_probabilities) != len(calibrated_probabilities):
+            raise ValueError(
+                f"corruption_probabilities length "
+                f"({len(corruption_probabilities)}) must match "
+                f"calibrated_probabilities length "
+                f"({len(calibrated_probabilities)})"
+            )
+        return [
+            self.decide(p, q)
+            for p, q in zip(calibrated_probabilities, corruption_probabilities)
+        ]
 
     # ── Breakeven thresholds ─────────────────────────────────────────────────
 
@@ -380,18 +447,35 @@ class DecisionPolicy:
             return threshold
         return None
 
-    def breakeven_auto_vs_abstain(self) -> Optional[float]:
+    def breakeven_auto_vs_abstain(
+        self, corruption_probability: float = 1.0
+    ) -> Optional[float]:
         """
         Minimum p at which AUTO_REPAIR equals ABSTAIN in expected cost.
 
         Derivation
         ----------
-        (1 - p) * C_wrong = C_abstain
-        p = 1 - C_abstain / C_wrong
+        (1 - p) * C_wrong = q * C_abstain
+        p = 1 - q * C_abstain / C_wrong
 
-        Returns None if the threshold is outside [0, 1].
+        With q = 1 (default) this is the original 1 - C_abstain / C_wrong.
+        As q → 0 abstaining becomes free and the threshold → 1.0: AUTO
+        only ties ABSTAIN at p = 1, where both cost zero.
+
+        Parameters
+        ----------
+        corruption_probability : float, optional
+            q in [0, 1].  Defaults to 1.0.
+
+        Returns None if the threshold is outside [0, 1] (the clamping rule
+        is unchanged from the q = 1 version).
         """
-        threshold = 1.0 - self.c_abstain / self.c_wrong
+        q = float(corruption_probability)
+        if not (0.0 <= q <= 1.0):
+            raise ValueError(
+                f"corruption_probability must be in [0, 1], got {q}"
+            )
+        threshold = 1.0 - q * self.c_abstain / self.c_wrong
         if 0.0 <= threshold <= 1.0:
             return threshold
         return None

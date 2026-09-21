@@ -88,31 +88,31 @@ evaluator penalises the policy for correctly ignoring false alarms.
       to shrinkage toward the global rate: (k + s·g)/(n + s).
 
 ### Step 2 — Policy takes q (Phase 8, then Phase 7), default 1.0
-- [~] 2.1 `DecisionPolicy.decide(p, corruption_probability=1.0)`; validate
+- [x] 2.1 `DecisionPolicy.decide(p, corruption_probability=1.0)`; validate
       q ∈ [0,1]; `e_abstain = q · c_abstain`; reason string shows
       `q × C_abstain`; `DecisionResult.corruption_probability: float = 1.0`
       appended LAST (frozen dataclass).
-- [ ] 2.2 `decide_batch(probs, corruption_probabilities=None)`;
+- [x] 2.2 `decide_batch(probs, corruption_probabilities=None)`;
       `breakeven_auto_vs_abstain(corruption_probability=1.0)`.
-- [ ] 2.3 Phase 7 mirror: `compute_expected_costs(p, corruption_probability=1.0)`,
+- [x] 2.3 Phase 7 mirror: `compute_expected_costs(p, corruption_probability=1.0)`,
       `ExpectedCosts.corruption_probability` (last, default 1.0),
       `compute_risk_record(..., corruption_probability=1.0)`,
       `compute_risk_batch(..., corruption_probs=None)`,
       `RiskRecord.corruption_probability` + `to_dict` key,
       `sensitivity_over_p(n_steps, corruption_probability=1.0)`.
       `analytical_thresholds()` docstring: note thresholds assume q=1.
-- [ ] 2.4 `wrap_proposed_method` puts `corruption_probability` in
+- [x] 2.4 `wrap_proposed_method` puts `corruption_probability` in
       `BaselineRecord.metadata`.
-- [ ] 2.5 Tests (new file `tests/test_calibrated_abstention.py`, do not edit
+- [x] 2.5 Tests (new file `tests/test_calibrated_abstention.py`, do not edit
       existing): q=1 reproduces old results on a p-grid exactly; q<1 scales
       abstain cost linearly; on a (p,q) grid with BC costs all three
       actions appear and regions are where the algebra says; q invalid
       rejected; ties at q·C == C_human resolve by documented priority;
       Phase 7 and 8 agree for the same (p,q).
-- [ ] 2.6 Commit.
+- [x] 2.6 Commit. (1116 tests, 0 existing tests edited.)
 
 ### Step 3 — Evaluation charges abstain only on real corruption
-- [ ] 3.1 `CostEvaluator.evaluate`: ABSTAIN cost = `c_abstain` iff
+- [~] 3.1 `CostEvaluator.evaluate`: ABSTAIN cost = `c_abstain` iff
       `not comparator.are_equal(rec.dirty_value, clean)`; add
       `CostReport.n_abstain_on_corrupted / n_abstain_on_clean` (default 0)
       and `to_dict` keys.

@@ -460,6 +460,12 @@ def wrap_proposed_method(
                     "c_wrong": dr.c_wrong,
                     "c_human": dr.c_human,
                     "c_abstain": dr.c_abstain,
+                    # q used for E[Cost_abstain] = q × C_abstain.  getattr so
+                    # a DecisionResult built before this field existed
+                    # still wraps (it implied q = 1).
+                    "corruption_probability": getattr(
+                        dr, "corruption_probability", 1.0
+                    ),
                 },
             )
         )
