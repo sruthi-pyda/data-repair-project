@@ -7,20 +7,24 @@ the experiment runner (Phase 13). See ``runner.py`` for the leakage rules.
 
 from src.pipeline.runner import (
     DATASETS,
+    DEFAULT_IQR_K,
     SKIP_COLUMNS,
     PipelineBundle,
     PolicyEvaluation,
     decide_all,
+    default_flag_outliers,
     evaluate_policies,
     run_pipeline,
 )
 
 __all__ = [
     "DATASETS",
+    "DEFAULT_IQR_K",
     "SKIP_COLUMNS",
     "PipelineBundle",
     "PolicyEvaluation",
     "decide_all",
+    "default_flag_outliers",
     "evaluate_policies",
     "run_pipeline",
 ]

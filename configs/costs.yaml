@@ -10,11 +10,17 @@
 #
 #   E[ACCEPT_REPAIR]   = (1 - p) * c_wrong_repair
 #   E[HUMAN_REVIEW]    = c_human_review             (constant)
-#   E[LEAVE_UNCHANGED] = c_leave_error              (constant)
+#   E[LEAVE_UNCHANGED] = q * c_leave_error          (scales with q)
 #
-#   where p = calibrated probability of correctness.
+#   where p = calibrated probability that the proposed repair is correct
+#         q = calibrated probability that the flagged cell is genuinely
+#             corrupted (src/calibration/detection_calibrator.py, learned
+#             per detection_method on a training split; q = 1 when the
+#             detection calibrator cannot fit).
 #
-# ─── ANALYTICAL THRESHOLDS ───────────────────────────────────────────────────
+# ─── ANALYTICAL THRESHOLDS (the q = 1 case) ──────────────────────────────────
+#
+#   With q = 1 (every flagged cell assumed genuinely corrupted):
 #
 #   ACCEPT preferred over REVIEW when:
 #       p > 1 - c_human_review / c_wrong_repair
@@ -22,16 +28,25 @@
 #   ACCEPT preferred over LEAVE when:
 #       p > 1 - c_leave_error / c_wrong_repair
 #
-#   With defaults (wrong=10, review=2, leave=5):
+#   With defaults (wrong=10, review=2, leave=5) and q = 1:
 #       Accept over Review:  p > 1 - 2/10 = 0.80
 #       Accept over Leave:   p > 1 - 5/10 = 0.50
 #       → ACCEPT if p > 0.80, REVIEW if p ≤ 0.80 (since review(2) < leave(5))
 #
-#   NOTE: REVIEW and LEAVE are both constant in p, so whichever is cheaper
-#   wins at *every* confidence and the other is never selected. A config
-#   with c_leave_error > c_human_review can never LEAVE/ABSTAIN; one with
-#   c_leave_error < c_human_review can never HUMAN_REVIEW. Set the two
-#   relative to each other deliberately per dataset (see adult below).
+#   For general q the LEAVE thresholds become
+#       Accept over Leave:   p > 1 - q * c_leave_error / c_wrong_repair
+#       Leave over Review:   q < c_human_review / c_leave_error
+#
+#   NOTE: REVIEW and LEAVE are both constant in p, but LEAVE scales with q.
+#   At a fixed q whichever of the two is cheaper wins at every confidence;
+#   because q varies per cell (near 1 for missing values, near 0 for IQR
+#   false alarms) BOTH become reachable within one dataset. With the
+#   shipped configs, LEAVE beats REVIEW exactly when
+#       q < c_human_review / c_leave_error
+#   i.e. q < 0.40 (adult), q < 0.50 (breast_cancer), q < 0.40 (smartfactory).
+#   Under q = 1 every shipped config has c_leave_error > c_human_review, so
+#   LEAVE/ABSTAIN is unreachable — that is the historical behaviour and it
+#   is reproduced exactly whenever the detection calibrator is not fitted.
 
 # ─── Default costs (used when no dataset-specific override exists) ────────────
 
@@ -52,17 +67,19 @@ datasets:
   adult:
     c_wrong_repair: 10
     c_human_review: 2
-    c_leave_error: 1
+    c_leave_error: 5
     note: >
       Adult detections are statistical false positives (fnlwgt IQR outliers).
       True corruption (income label flips) is undetectable from dirty data.
       Calibrated probabilities will be near 0 for all records.
-      c_leave_error is set BELOW c_human_review because a flagged Adult cell
-      is not actually corrupted: leaving it unchanged costs almost nothing,
-      whereas routing every false positive to a reviewer wastes their time.
-      This makes LEAVE_UNCHANGED / ABSTAIN the rational action for p <= 0.90
-      and is the only shipped config in which abstention is reachable.
-      (Originally 5, which made abstention unreachable — changed 2026-09-22.)
+      Abstention on Adult arises from the LEARNED corruption probability
+      q ≈ 0 (every detection is an IQR false positive, so the detection
+      calibrator learns q ≈ 0.01 for iqr_outlier), which makes
+      E[LEAVE_UNCHANGED] = q * 5 ≈ 0.05 < c_human_review = 2. It is NOT a
+      hand-set cost: c_leave_error = 5 is the original value (a genuine
+      Adult error left in place would cost 5, the same as smartfactory).
+      A temporary hand-set c_leave_error = 1 (2026-09-22) was reverted
+      once q was learned — see docs/three_actions_plan.md.
 
   breast_cancer:
     c_wrong_repair: 50

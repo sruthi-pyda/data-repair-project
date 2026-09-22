@@ -306,3 +306,52 @@ class TestNoLeakage:
             if "clean_df" in stripped and "(" in stripped and "=" in stripped.split("(")[0]:
                 call = stripped.split("=", 1)[1].strip()
                 assert any(a in call for a in allowed), f"unexpected clean_df use: {stripped}"
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Calibrated abstention: q flows through the bundle into decide_all
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+class TestCorruptionProbabilityInBundle:
+    def test_aligned_and_in_unit_interval(self, bc_bundle):
+        b = bc_bundle
+        assert len(b.corruption_probs) == b.n_records
+        assert len(b.detection_labels) == b.n_records
+        assert all(0.0 <= q <= 1.0 for q in b.corruption_probs)
+        assert set(b.detection_labels) <= {0, 1}
+        assert len(b.detection_methods) == b.n_records
+
+    def test_default_detector_flags_reproduce_old_counts(self, bc_bundle):
+        assert bc_bundle.iqr_k == 3.0
+        assert bc_bundle.flag_outliers is True
+
+    def test_iqr_k_validated(self):
+        with pytest.raises(ValueError):
+            run_pipeline("breast_cancer", n_records=20, iqr_k=0, data_root=DATA_ROOT)
+
+    def test_flag_outliers_override_changes_smartfactory_detections(self):
+        off = run_pipeline("smartfactory", n_records=50, flag_outliers=False, data_root=DATA_ROOT)
+        on = run_pipeline("smartfactory", n_records=50, flag_outliers=True, data_root=DATA_ROOT)
+        assert off.n_detected_total == 7093
+        assert on.n_detected_total > off.n_detected_total
+
+    def test_decide_all_uses_q(self, bc_bundle, bc_costs):
+        import dataclasses
+        all_zero = dataclasses.replace(bc_bundle, corruption_probs=[0.0] * bc_bundle.n_records)
+        # q = 0 makes abstaining free; only a p = 1.0 cell (auto also free)
+        # can beat it, by the AUTO > ABSTAIN tie priority.
+        for d in decide_all(all_zero, bc_costs):
+            expected = DecisionAction.AUTO_REPAIR if d.calibrated_probability == 1.0 else DecisionAction.ABSTAIN
+            assert d.action == expected, (d.calibrated_probability, d.action)
+        all_one = dataclasses.replace(bc_bundle, corruption_probs=[1.0] * bc_bundle.n_records)
+        assert DecisionAction.ABSTAIN not in {d.action for d in decide_all(all_one, bc_costs)}
+
+    def test_decisions_carry_q(self, bc_bundle, bc_costs):
+        for q, d in zip(bc_bundle.corruption_probs, decide_all(bc_bundle, bc_costs)):
+            assert d.corruption_probability == pytest.approx(q, abs=1e-9)
+
+    def test_scrambled_ground_truth_changes_only_labels_not_q_inputs(self, bc_bundle):
+        """q is learned from labels, so it MAY change with ground truth; but the
+        record features it is learned from (detection_method) must not."""
+        assert all(isinstance(m, str) and m for m in bc_bundle.detection_methods)

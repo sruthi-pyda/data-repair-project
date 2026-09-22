@@ -133,19 +133,19 @@ evaluator penalises the policy for correctly ignoring false alarms.
       `corruption_probs`, `detection_calibration` (report), and
       `detection_method` per record.
 - [x] 4.2 `decide_all` passes q. `evaluate_policies` unchanged in interface.
-- [~] 4.3 Restore Adult `c_leave_error: 5` in `configs/costs.yaml`; rewrite
+- [x] 4.3 Restore Adult `c_leave_error: 5` in `configs/costs.yaml`; rewrite
       the note (abstention now comes from learned q, not the config).
       Update `TestShippedCostConfigs` expectations — the ONE place an
       existing test is edited, because the config it pins is what changes.
       Add a test that Adult still all-abstains via q.
-- [ ] 4.4 End-to-end tests: BC k=1.5 → all three actions present and
+- [x] 4.4 End-to-end tests: BC k=1.5 → all three actions present and
       iqr_outlier cells ≥ 95 % ABSTAIN, missing cells 0 % ABSTAIN;
       SF outliers-on → outliers ABSTAIN, missing HUMAN, AUTO = 0;
       BC k=3 → decisions identical to before this branch (regression pin).
-- [ ] 4.5 Commit.
+- [x] 4.5 Commit. (1170 tests.)
 
 ### Step 5 — Dashboard
-- [ ] 5.1 Sidebar: "Detector" group — IQR fence k slider (1.0–3.0, default
+- [~] 5.1 Sidebar: "Detector" group — IQR fence k slider (1.0–3.0, default
       3.0) and "flag statistical outliers" toggle (default per dataset).
 - [ ] 5.2 Section 4: add "P(cell genuinely corrupted) q" metric + how it was
       learned. Section 5: show `q × C_abstain`. Section 7: abstain line at
@@ -192,6 +192,36 @@ D3. Detector fence k=1.5 as an **experiment option** (default stays 3.0).
     Recommended: yes — reported as a detector-precision ablation, never as
     the default, so no existing numbers move.
 
-## 3. Results (filled in at Step 6)
+## 3. Results
 
-_(empty)_
+Measured 2026-09-22, seed 42, full datasets, learned q (Steps 1-4).
+
+### Breast Cancer, Tukey fence k=1.5 (550 decided cells) — all three live
+
+| detection_method | AUTO | HUMAN | ABSTAIN | learned q |
+|---|---|---|---|---|
+| missing_value | 20 | 190 | 0 | 0.99 |
+| range_check | 13 | 116 | 0 | 0.99 |
+| vocab_check | 1 | 12 | 0 | 0.92 |
+| format_check | 1 | 2 | 0 | 0.75 |
+| iqr_outlier | 0 | 0 | **195** | 0.038 |
+
+Realised cost: proposed **1750** vs always-auto 15450 vs threshold-0.8
+2745. 190 of the 195 abstentions were on genuinely clean cells.
+
+### Breast Cancer, default k=3.0 — nothing changes (regression pin)
+
+392 detections, no outlier flags. Learned q flips **0** decisions vs q=1.
+AUTO 52 / HUMAN 303, realised cost 1615 (always-auto 5800) — identical to
+the pre-branch numbers in CLAUDE.md §4.
+
+### Adult, original config 10/2/5 (2000 cells)
+
+All 2000 ABSTAIN via learned q < 0.05; realised cost **0** (every flag is
+a false alarm, so leaving them costs nothing) vs always-auto 20000 and
+threshold-0.8 4000. The hand-set `c_leave_error = 1` is no longer needed.
+
+### Smart Factory, outliers on
+
+iqr_outlier → ABSTAIN, missing_value → HUMAN_REVIEW, AUTO = 0 (best
+repair p = 0.58 < the 0.92 break-even). Reported, not tuned away.

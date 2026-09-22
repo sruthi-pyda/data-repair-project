@@ -115,14 +115,24 @@ class TestInteractiveRiskDemo:
         assert _metric_value(at, "Calibrated p(correct)") == p_before
 
     def test_expected_cost_metrics_follow_formulas(self):
+        """E[ABSTAIN] = q · C_abstain, where q is the learned corruption
+        probability of the selected cell. The test re-runs the same pipeline
+        the app runs (same defaults) to obtain q independently of the UI."""
+        from src.pipeline import run_pipeline
+
         at = _run()
+        bundle = run_pipeline("breast_cancer", n_records=300, seed=42, n_samples=5)
+        first = bundle.decision_indices()[0]  # the app's default selection
+        q = bundle.corruption_probs[first]
         p = float(_metric_value(at, "Calibrated p(correct)"))
+        assert p == pytest.approx(bundle.calibrated_probs[first], abs=5e-4)
         e_auto = float(_metric_value(at, "E[AUTO_REPAIR]"))
         e_human = float(_metric_value(at, "E[HUMAN_REVIEW]"))
         e_abstain = float(_metric_value(at, "E[ABSTAIN]"))
         assert e_auto == pytest.approx((1 - p) * 50.0, abs=0.05)
         assert e_human == pytest.approx(5.0)
-        assert e_abstain == pytest.approx(10.0)
+        assert e_abstain == pytest.approx(q * 10.0, abs=0.01)
+        assert e_abstain < 10.0  # a missing-value cell: q < 1 by the prior
 
     def test_cheapest_action_marked_once(self):
         at = _run()
@@ -147,8 +157,9 @@ class TestDatasets:
         infos = " ".join(i.value for i in at.info)
         assert "no calibrator" in infos.lower() or "base rate" in infos.lower()
         assert _decision(at) == "ABSTAIN"
-        # Sliders reset to Adult's YAML values, not Breast Cancer's.
-        assert at.sidebar.slider(key="c_abstain_adult").value == 1.0
+        # Sliders reset to Adult's YAML values (original 10/2/5), not Breast Cancer's.
+        assert at.sidebar.slider(key="c_abstain_adult").value == 5.0
+        assert at.sidebar.slider(key="c_wrong_adult").value == 10.0
 
     def test_smartfactory_runs(self):
         at = _run()

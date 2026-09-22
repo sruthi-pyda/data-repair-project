@@ -7,8 +7,8 @@ demo scripts use, and splits the work into three stages so a UI can re-run
 the cheap stages interactively:
 
     run_pipeline()       load → profile → detect → repair → uncertainty →
-                         calibrate                              (seconds)
-    decide_all()         calibrated p + cost config → decision per cell
+                         calibrate p and q                      (seconds)
+    decide_all()         calibrated (p, q) + cost config → decision per cell
                                                                 (milliseconds)
     evaluate_policies()  proposed method vs. baselines, scored against
                          ground truth                           (milliseconds)
@@ -24,16 +24,51 @@ DATA LEAKAGE RULES (CLAUDE.md §3)
     Detector.detect()           no
     MockRepairer.repair_batch() no
     UncertaintyEstimator        no
-    CalibrationBuilder.build()  yes (labels)      the ONE legitimate entry point
+    CalibrationBuilder.build()  yes (labels)      0/1 "repair is correct" labels
+                                                  for p (Phase 6)
     calibrator.fit/predict      no                sees (signals, 0/1) only
-    decide_all()                no                takes p and costs, nothing else
+    DetectionLabelBuilder.build yes (labels)      0/1 "cell is corrupted" labels
+                                                  for q (same permitted use)
+    DetectionCalibrator.fit/    no                sees (detection_method, 0/1)
+      predict                                     only
+    decide_all()                no                takes (p, q) and costs, nothing
+                                                  else
     evaluate_policies()         yes               scoring after the fact
 
 ``decide_all`` deliberately has no ``clean_df`` parameter and ``PipelineBundle``
-exposes the decision inputs (``unc_records``, ``calibrated_probs``) separately
-from the evaluation inputs (``clean_df``), so a caller cannot accidentally
+exposes the decision inputs (``unc_records``, ``calibrated_probs``,
+``corruption_probs``) separately from the evaluation inputs (``clean_df``,
+``cal_samples``, ``detection_labels``), so a caller cannot accidentally
 route ground truth into a decision. ``tests/test_pipeline_runner.py`` asserts
 both properties.
+
+TWO CALIBRATED PROBABILITIES
+============================
+Each carried record gets two learned probabilities, both fitted on a train
+split and predicted for every record (fit-on-train, predict-on-all):
+
+    p = P(proposed repair is correct)      Phase 6, from raw_confidence etc.
+    q = P(flagged cell is genuinely corrupted)
+                                           src/calibration/detection_calibrator
+                                           grouped by detection_method
+
+The Phase 8 policy then minimises
+
+    E[AUTO_REPAIR]  = (1 - p) · C_wrong
+    E[HUMAN_REVIEW] = C_human
+    E[ABSTAIN]      = q · C_abstain
+
+so abstention is cheap exactly where the detector is known to raise false
+alarms (IQR outliers: q ≈ 0) and expensive where every flag is real
+(missing values: q ≈ 1). When the detection calibrator cannot fit, q = 1.0
+for every record, which reproduces the pre-Step-4 decisions exactly.
+
+DETECTOR KNOBS
+==============
+``iqr_k`` (Tukey fence multiplier, default 3.0) and ``flag_outliers``
+(``None`` → per-dataset default: off for smartfactory, on elsewhere) are
+experiment options. The defaults reproduce the historical runs; k=1.5 is the
+detector-precision ablation in docs/three_actions_plan.md.
 
 CALIBRATOR SELECTION
 ====================
@@ -49,9 +84,11 @@ Worked example
     >>> bundle = run_pipeline("breast_cancer", n_records=200)
     >>> costs = CostConfig(c_wrong_repair=50, c_human_review=5,
     ...                    c_leave_error=10, dataset_name="breast_cancer")
-    >>> decisions = decide_all(bundle, costs)
+    >>> decisions = decide_all(bundle, costs)          # uses p and q per cell
     >>> decisions[0].action
     <DecisionAction.HUMAN_REVIEW: 'HUMAN_REVIEW'>
+    >>> bundle.corruption_probs[0] > 0.9                # a missing_value cell
+    True
     >>> ev = evaluate_policies(bundle, costs, threshold=0.8)
     >>> [r.method_name for r in ev.rows]
     ['calibrated_risk_aware', 'always_auto', 'confidence_threshold_0.80']
@@ -83,6 +120,11 @@ from src.calibration.calibrator import (
     calibrate_dataset,
     samples_to_feature_matrix,
     train_eval_split,
+)
+from src.calibration.detection_calibrator import (
+    DetectionCalibrationReport,
+    DetectionLabelBuilder,
+    fit_detection_calibrator,
 )
 from src.calibration.metrics import brier_score
 from src.data.loader import DataLoader
@@ -117,6 +159,13 @@ SKIP_COLUMNS: Dict[str, List[str]] = {
 _NO_OUTLIER_FLAGGING = frozenset({"smartfactory"})
 
 DEFAULT_EVAL_FRACTION = 0.30
+DEFAULT_IQR_K = 3.0
+DEFAULT_DETECTION_SMOOTHING = 1.0
+
+
+def default_flag_outliers(dataset: str) -> bool:
+    """Per-dataset default for ``flag_outliers`` (configs/default.yaml)."""
+    return dataset not in _NO_OUTLIER_FLAGGING
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -131,14 +180,31 @@ class PipelineBundle:
 
     Decision inputs (no ground truth inside):
         profile, dirty_df, detections, repair_results, unc_records,
-        calibrated_probs, calibration_method, calibration_note
+        calibrated_probs, calibration_method, calibration_note,
+        corruption_probs, detection_note
     Evaluation inputs (ground truth):
-        clean_df, cal_samples, comparison
+        clean_df, cal_samples, comparison, detection_labels,
+        detection_calibration
 
-    ``unc_records``, ``cal_samples`` and ``calibrated_probs`` are aligned by
-    index. ``cal_samples`` can be shorter than ``unc_records`` only if a
-    record's column is absent from clean_df, which never happens for the
-    shipped datasets; ``run_pipeline`` raises if they diverge.
+    ``detections``, ``unc_records``, ``cal_samples``, ``calibrated_probs``,
+    ``detection_labels`` and ``corruption_probs`` are aligned by index.
+    ``cal_samples`` can be shorter than ``unc_records`` only if a record's
+    column is absent from clean_df, which never happens for the shipped
+    datasets; ``run_pipeline`` raises if they diverge.
+
+    On the two detection-side lists:
+
+    * ``detection_labels[i]`` is GROUND TRUTH — 1 if the dirty cell really
+      differs from the clean cell. It lives on the evaluation side and must
+      never be passed to a decision.
+    * ``corruption_probs[i]`` is a DECISION INPUT — the calibrated
+      q = P(cell genuinely corrupted), learned on the train split of the
+      labels and predicted for every record, exactly as ``calibrated_probs``
+      is for p. ``decide_all`` consumes it; ``detection_note`` says why it is
+      1.0 everywhere when the calibrator could not fit.
+
+    ``iqr_k`` and ``flag_outliers`` record the detector settings actually
+    used, so an experiment table can label its rows.
     """
 
     dataset: str
@@ -163,9 +229,22 @@ class PipelineBundle:
 
     n_detected_total: int = 0
 
+    # Step 4 additions (defaults keep older constructors working).
+    detection_labels: List[int] = field(default_factory=list)
+    corruption_probs: List[float] = field(default_factory=list)
+    detection_calibration: Optional[DetectionCalibrationReport] = None
+    detection_note: Optional[str] = None
+    iqr_k: float = DEFAULT_IQR_K
+    flag_outliers: bool = True
+
     @property
     def n_records(self) -> int:
         return len(self.unc_records)
+
+    @property
+    def detection_methods(self) -> List[str]:
+        """``detection_method`` of every carried record (aligned with unc_records)."""
+        return [d.detection_method for d in self.detections]
 
     @property
     def raw_confidences(self) -> List[float]:
@@ -212,9 +291,13 @@ def run_pipeline(
     top_k: int = 3,
     data_root: str | Path = "datasets",
     eval_fraction: float = DEFAULT_EVAL_FRACTION,
+    iqr_k: float = DEFAULT_IQR_K,
+    flag_outliers: Optional[bool] = None,
+    detection_smoothing: float = DEFAULT_DETECTION_SMOOTHING,
 ) -> PipelineBundle:
     """
-    Run Phases 1–6 for one dataset and return a :class:`PipelineBundle`.
+    Run Phases 1–6 (plus detection calibration) for one dataset and return
+    a :class:`PipelineBundle`.
 
     Parameters
     ----------
@@ -228,7 +311,15 @@ def run_pipeline(
     data_root : path
         Folder containing ``<dataset>/{clean,dirty}.csv``.
     eval_fraction : float
-        Calibration hold-out fraction.
+        Calibration hold-out fraction (shared by the p and q calibrators).
+    iqr_k : float
+        Tukey fence multiplier for the IQR outlier check. Must be > 0.
+        3.0 is the historical default; 1.5 is the precision ablation.
+    flag_outliers : bool or None
+        Whether the detector flags statistical outliers at all. ``None``
+        uses the per-dataset default (:func:`default_flag_outliers`).
+    detection_smoothing : float
+        Beta(s, s) prior for the detection calibrator (q). Must be >= 0.
     """
     if dataset not in DATASETS:
         raise ValueError(f"Unknown dataset '{dataset}'. Choose from {DATASETS}.")
@@ -236,17 +327,35 @@ def run_pipeline(
         raise ValueError(f"n_samples must be >= 1, got {n_samples}")
     if top_k < 1:
         raise ValueError(f"top_k must be >= 1, got {top_k}")
+    if not (iqr_k > 0):
+        raise ValueError(f"iqr_k must be > 0, got {iqr_k}")
+    if detection_smoothing < 0:
+        raise ValueError(f"detection_smoothing must be >= 0, got {detection_smoothing}")
+    if flag_outliers is None:
+        flag_outliers = default_flag_outliers(dataset)
 
     loader = DataLoader(data_root)
     clean_df, dirty_df = loader.load(dataset)
     profile = profile_dataset(dataset, loader.discover(dataset), clean_df, dirty_df)
 
     # ── Phase 3: detection (dirty data + population-level profile only) ──
-    detector = Detector(
-        profile, flag_statistical_outliers=dataset not in _NO_OUTLIER_FLAGGING
-    )
+    detector = Detector(profile, iqr_k=iqr_k, flag_statistical_outliers=flag_outliers)
     all_detections = detector.detect(dirty_df)
     detections = all_detections[:n_records] if n_records > 0 else all_detections
+
+    # ── Detection calibration: q = P(cell genuinely corrupted) ────────────
+    # clean_df enters ONLY through DetectionLabelBuilder, for 0/1 labels on
+    # the SAME carried detections. The calibrator is fitted on the train
+    # split and predicts q for every record (mirrors _calibrate_all for p).
+    detection_labels = DetectionLabelBuilder().build(
+        detections, clean_df, dirty_df
+    )
+    det_calibrator, det_report = fit_detection_calibrator(
+        detections, detection_labels, seed=seed, eval_fraction=eval_fraction,
+        dataset_name=dataset, smoothing=detection_smoothing,
+    )
+    corruption_probs = [float(q) for q in det_calibrator.predict(detections)]
+    detection_note = det_report.limitation
 
     # ── Phases 4–5: repair + uncertainty (no clean_df) ────────────────────
     repairer = MockRepairer(seed=seed, top_k=top_k)
@@ -271,8 +380,10 @@ def run_pipeline(
         method, note, probs = _calibrate_all(cal_samples, seed, eval_fraction)
 
     logger.info(
-        "run_pipeline '%s': %d/%d detections, calibration=%s",
-        dataset, len(detections), len(all_detections), method,
+        "run_pipeline '%s': %d/%d detections (iqr_k=%.2f, outliers=%s), "
+        "calibration=%s, detection calibrator fitted=%s",
+        dataset, len(detections), len(all_detections), iqr_k, flag_outliers,
+        method, det_calibrator.is_fitted(),
     )
     return PipelineBundle(
         dataset=dataset,
@@ -292,6 +403,12 @@ def run_pipeline(
         calibration_note=note,
         calibrated_probs=probs,
         n_detected_total=len(all_detections),
+        detection_labels=detection_labels,
+        corruption_probs=corruption_probs,
+        detection_calibration=det_report,
+        detection_note=detection_note,
+        iqr_k=float(iqr_k),
+        flag_outliers=bool(flag_outliers),
     )
 
 
@@ -370,15 +487,27 @@ def _calibrate_all(
 
 def decide_all(bundle: PipelineBundle, costs: CostConfig) -> List[DecisionResult]:
     """
-    Apply the Phase 8 policy to every record's calibrated probability.
+    Apply the Phase 8 policy to every record's calibrated (p, q).
 
-    Takes only the bundle's calibrated probabilities and the cost config.
+    Takes only the bundle's two calibrated probabilities and the cost
+    config — ``p = calibrated_probs[i]`` and ``q = corruption_probs[i]`` —
+    so ``E[ABSTAIN] = q · C_abstain``. A bundle without ``corruption_probs``
+    (older constructor) is treated as q = 1.0 everywhere, i.e. the
+    historical behaviour.
+
     Returns one DecisionResult per ``unc_record`` (same order), including
     skipped ID-like columns so indices stay aligned; use
     ``bundle.decision_indices()`` to filter those out for reporting.
     """
     policy = DecisionPolicy.from_cost_config(costs)
-    return [policy.decide(p) for p in bundle.calibrated_probs]
+    probs = bundle.calibrated_probs
+    qs = bundle.corruption_probs if bundle.corruption_probs else [1.0] * len(probs)
+    if len(qs) != len(probs):
+        raise ValueError(
+            f"bundle.corruption_probs ({len(qs)}) and calibrated_probs "
+            f"({len(probs)}) are misaligned."
+        )
+    return [policy.decide(p, corruption_probability=q) for p, q in zip(probs, qs)]
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
