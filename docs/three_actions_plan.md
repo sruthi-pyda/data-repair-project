@@ -112,26 +112,28 @@ evaluator penalises the policy for correctly ignoring false alarms.
 - [x] 2.6 Commit. (1116 tests, 0 existing tests edited.)
 
 ### Step 3 — Evaluation charges abstain only on real corruption
-- [~] 3.1 `CostEvaluator.evaluate`: ABSTAIN cost = `c_abstain` iff
+- [x] 3.1 `CostEvaluator.evaluate`: ABSTAIN cost = `c_abstain` iff
       `not comparator.are_equal(rec.dirty_value, clean)`; add
       `CostReport.n_abstain_on_corrupted / n_abstain_on_clean` (default 0)
       and `to_dict` keys.
-- [ ] 3.2 `RiskEvaluator` (Phase 7 demo path) same rule using `dirty_df`;
+- [x] 3.2 `RiskEvaluator` (Phase 7 demo path) same rule using `dirty_df`;
       "Always LEAVE" baseline = Σ c_leave·[corrupted].
-- [ ] 3.3 Tests: abstain on clean cell → 0; on corrupted → c; existing
+- [x] 3.3 Tests: abstain on clean cell → 0; on corrupted → c; existing
       all-abstain tests untouched and still pass (their cells are
       corrupted); Adult always-LEAVE == 0.
-- [ ] 3.4 Commit. Phase 10 semantic change; only affects rows where
+- [x] 3.4 Commit. Two Phase 7 tests whose 'always LEAVE' expectation sat on
+      non-corrupted fixture rows were rewritten deliberately (documented in
+      the tests). Phase 10 semantic change; only affects rows where
       abstain fires on a false alarm; BC/SF k=3 numbers unchanged. Kept
       only if Step 6 shows it is better.
 
 ### Step 4 — Runner + cost config
-- [ ] 4.1 `run_pipeline(..., iqr_k=3.0, flag_outliers=None)` (None → per-
+- [x] 4.1 `run_pipeline(..., iqr_k=3.0, flag_outliers=None)` (None → per-
       dataset default as today). Bundle gains `detection_labels`,
       `corruption_probs`, `detection_calibration` (report), and
       `detection_method` per record.
-- [ ] 4.2 `decide_all` passes q. `evaluate_policies` unchanged in interface.
-- [ ] 4.3 Restore Adult `c_leave_error: 5` in `configs/costs.yaml`; rewrite
+- [x] 4.2 `decide_all` passes q. `evaluate_policies` unchanged in interface.
+- [~] 4.3 Restore Adult `c_leave_error: 5` in `configs/costs.yaml`; rewrite
       the note (abstention now comes from learned q, not the config).
       Update `TestShippedCostConfigs` expectations — the ONE place an
       existing test is edited, because the config it pins is what changes.

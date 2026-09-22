@@ -172,14 +172,17 @@ class TestCostConfigFromYaml:
         c = CostConfig.from_yaml(COSTS_YAML, "adult")
         assert c.c_wrong_repair == 10.0
         assert c.c_human_review == 2.0
-        assert c.c_leave_error == 1.0
+        assert c.c_leave_error == 5.0
         assert c.dataset_name == "adult"
 
-    def test_from_yaml_adult_leave_cheaper_than_review(self):
-        """Adult detections are false positives, so leaving the cell alone
-        must be cheaper than review — otherwise abstention is unreachable."""
+    def test_from_yaml_adult_uses_original_leave_cost(self):
+        """Adult detections are false positives, but abstention on them now
+        comes from the learned corruption probability q ≈ 0 (E[LEAVE] =
+        q · C_leave), not from a hand-set cost. The original value 5 is
+        restored; a temporary 1 (2026-09-22) was reverted."""
         c = CostConfig.from_yaml(COSTS_YAML, "adult")
-        assert c.c_leave_error < c.c_human_review
+        assert c.c_leave_error == 5.0
+        assert c.c_leave_error > c.c_human_review
 
     def test_from_yaml_breast_cancer(self):
         c = CostConfig.from_yaml(COSTS_YAML, "breast_cancer")
@@ -740,13 +743,38 @@ class TestRiskEvaluator:
         )
 
     def test_baseline_leave_all(self):
+        """Always-LEAVE charges C_leave only for genuinely corrupted cells.
+
+        In the fixture only row 0 is corrupted, so leaving rows 0-2 alone
+        costs one C_leave, not three (consistent with E[LEAVE] = q * C_leave;
+        a false-positive detection left alone costs nothing)."""
         n = 3
         recs = [_make_risk_record(row_id=i, column="age", top_candidate=25)
                 for i in range(n)]
         report = self.evaluator.evaluate(recs, self.costs)
+        assert report.n_genuinely_corrupted == 1
         assert report.empirical_cost_leave_all == pytest.approx(
-            n * self.costs.c_leave_error
+            1 * self.costs.c_leave_error
         )
+
+    def test_baseline_leave_all_charges_every_corrupted_cell(self):
+        clean = pd.DataFrame({"age": [25, 30, 35]})
+        dirty = pd.DataFrame({"age": [99, 99, 99]})
+        ev = RiskEvaluator(clean, dirty, "test")
+        recs = [_make_risk_record(row_id=i, column="age", top_candidate=25)
+                for i in range(3)]
+        report = ev.evaluate(recs, self.costs)
+        assert report.n_genuinely_corrupted == 3
+        assert report.empirical_cost_leave_all == pytest.approx(
+            3 * self.costs.c_leave_error
+        )
+
+    def test_leave_on_false_positive_costs_nothing(self):
+        # row 1 is NOT corrupted in the fixture
+        rr = _make_risk_record(row_id=1, column="age", top_candidate=30,
+                               action=Action.LEAVE_UNCHANGED, cal_prob=0.3)
+        report = self.evaluator.evaluate([rr], self.costs)
+        assert report.empirical_cost_policy == pytest.approx(0.0)
 
     def test_mean_cost_per_record(self):
         recs = [_make_risk_record(row_id=i, column="age", top_candidate=25,
@@ -756,15 +784,22 @@ class TestRiskEvaluator:
         expected_mean = report.empirical_cost_policy / 4
         assert report.mean_cost_per_record_policy == pytest.approx(expected_mean)
 
-    def test_cost_savings_positive_when_policy_cheaper(self):
-        # Policy = REVIEW for all → total = n * c_review = 4 * 2 = 8
-        # leave_all = 4 * 5 = 20 → savings = 12
+    def test_cost_savings_vs_leave_sign_follows_genuine_corruption(self):
+        """Reviewing every flagged cell only beats leaving them alone when
+        most of the flags are real. With 1 corrupted of 4 (fixture),
+        review_all = 4 * 2 = 8 > leave_all = 1 * 5 = 5, so savings < 0.
+        With all 4 corrupted, leave_all = 20 > 8, so savings > 0."""
         n = 4
         recs = [_make_risk_record(row_id=i, column="age", top_candidate=25,
                                   action=Action.HUMAN_REVIEW)
                 for i in range(n)]
         report = self.evaluator.evaluate(recs, self.costs)
-        assert report.cost_savings_vs_leave_all > 0
+        assert report.cost_savings_vs_leave_all < 0
+
+        clean = pd.DataFrame({"age": [25, 30, 35, 40]})
+        dirty = pd.DataFrame({"age": [99, 99, 99, 99]})
+        report_all = RiskEvaluator(clean, dirty, "test").evaluate(recs, self.costs)
+        assert report_all.cost_savings_vs_leave_all > 0
 
     def test_adult_limitation_string(self):
         evaluator = RiskEvaluator(self.clean, self.dirty, "adult")

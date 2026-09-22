@@ -11,7 +11,8 @@ EXPECTED COST (pre-decision)
 Computed by the policy BEFORE knowing whether the repair is actually correct.
   E[Cost_auto]    = (1 − p) × C_wrong
   E[Cost_human]   = C_human
-  E[Cost_abstain] = C_abstain
+  E[Cost_abstain] = q × C_abstain      q = P(cell is genuinely corrupted)
+                                       (Phase 8 default q = 1.0)
 
 Stored in BaselineRecord.expected_cost_{auto,human,abstain} for the
 proposed method.  None for baselines that do not use cost-aware routing.
@@ -24,17 +25,39 @@ Computed AFTER comparing decisions against ground truth (clean_df).
   AUTO_REPAIR + repair incorrect →  C_wrong
   HUMAN_REVIEW                   →  C_human   (regardless of correctness;
                                                the reviewer still worked)
-  ABSTAIN                        →  C_abstain (regardless of whether truly
-                                               corrupted; we left it alone)
+  ABSTAIN + cell truly corrupted →  C_abstain (the error persists)
+  ABSTAIN + cell was a false alarm → 0        (leaving a correct cell alone
+                                               is the right outcome)
 
 Total realized cost = Σ realized_cost(action_i)
 
 This is the number that matters for comparing policies.
 
+WHY ABSTAIN IS CHARGED CONDITIONALLY
+-------------------------------------
+The policy's expected abstain cost is q × C_abstain, where q is the
+probability that the flagged cell is genuinely corrupted (learned by
+src/calibration/detection_calibrator.py).  The realised cost must be the
+outcome that expectation is *over*: C_abstain when the cell really was
+corrupted, 0 when the detector raised a false alarm.  Charging C_abstain
+unconditionally would penalise the policy for correctly ignoring false
+alarms — exactly the behaviour a risk-aware policy is supposed to exhibit
+on datasets such as Adult, where every detection is a statistical
+false positive.  When every flagged cell is truly corrupted (q = 1) the
+two rules coincide, so previously reported numbers on such batches are
+unchanged.
+
+"Genuinely corrupted" is decided with the same ValueComparator used for
+repair correctness: dirty_value ≠ clean value (NaN == NaN, numeric
+tolerance).  A record whose column/row is absent from clean_df is treated
+as corrupted (conservative: the abstention is charged).
+
 DATA-LEAKAGE BOUNDARY
 ======================
-CostEvaluator accesses clean_df ONLY to determine repair correctness
-(AUTO_REPAIR cells).  clean_df is never passed upstream.
+CostEvaluator accesses clean_df ONLY to determine (a) repair correctness
+for AUTO_REPAIR cells and (b) whether a cell was genuinely corrupted, for
+the ABSTAIN charge and the n_genuinely_corrupted count.  Both are
+post-decision scoring; clean_df is never passed upstream.
 
 COST PARAMETERS
 ===============
@@ -107,6 +130,22 @@ class CostReport:
         C_human parameter used.
     cost_per_abstain : float
         C_abstain parameter used.
+
+    Abstention outcome (added with calibrated abstention; default 0 so
+    older constructors keep working)
+    -----------------------------------------------------------------
+    n_abstain_on_corrupted : int
+        ABSTAIN decisions on cells that were genuinely corrupted
+        (charged C_abstain each).
+    n_abstain_on_clean : int
+        ABSTAIN decisions on false alarms — dirty == clean (charged 0).
+    n_genuinely_corrupted : int
+        Records (any action) whose dirty value differs from the clean
+        value.  Useful for the "always leave" reference cost
+        n_genuinely_corrupted × C_abstain.
+    abstain_precision : float  (property)
+        n_abstain_on_clean / n_abstain — the fraction of abstentions that
+        were the right call.  0.0 when n_abstain == 0.
     """
 
     method_name: str
@@ -135,6 +174,18 @@ class CostReport:
     cost_per_human: float = 0.0
     cost_per_abstain: float = 0.0
 
+    # Abstention outcome (appended; defaults keep old constructors valid)
+    n_abstain_on_corrupted: int = 0
+    n_abstain_on_clean: int = 0
+    n_genuinely_corrupted: int = 0
+
+    @property
+    def abstain_precision(self) -> float:
+        """Fraction of ABSTAIN decisions that landed on a false alarm."""
+        if self.n_abstain <= 0:
+            return 0.0
+        return self.n_abstain_on_clean / self.n_abstain
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "method_name": self.method_name,
@@ -154,6 +205,10 @@ class CostReport:
             "cost_per_wrong_auto": self.cost_per_wrong_auto,
             "cost_per_human": self.cost_per_human,
             "cost_per_abstain": self.cost_per_abstain,
+            "n_abstain_on_corrupted": self.n_abstain_on_corrupted,
+            "n_abstain_on_clean": self.n_abstain_on_clean,
+            "n_genuinely_corrupted": self.n_genuinely_corrupted,
+            "abstain_precision": self.abstain_precision,
         }
 
 
@@ -210,7 +265,9 @@ class CostEvaluator:
     Compute realized costs for BaselineRecord lists against ground truth.
 
     This is the ONLY class in this module that accesses clean_df.
-    It uses clean_df ONLY to check whether AUTO_REPAIR decisions are correct.
+    It uses clean_df ONLY to check (a) whether AUTO_REPAIR decisions are
+    correct and (b) whether each flagged cell was genuinely corrupted,
+    which decides if an ABSTAIN is charged (see module docstring).
 
     Parameters
     ----------
@@ -221,7 +278,8 @@ class CostEvaluator:
     c_human : float
         Realized cost of routing to human review.
     c_abstain : float
-        Realized cost of abstaining.
+        Realized cost of abstaining on a genuinely corrupted cell.
+        Abstaining on a false alarm costs 0.
     comparator : ValueComparator, optional
         Custom comparison strategy.  Defaults to exact comparison.
     """
@@ -296,10 +354,16 @@ class CostEvaluator:
 
         n_auto = n_human = n_abstain = 0
         n_correct_auto = n_wrong_auto = 0
+        n_abstain_on_corrupted = n_abstain_on_clean = 0
+        n_genuinely_corrupted = 0
         total_cost = 0.0
 
         for rec in records:
             action = rec.action
+            genuinely_corrupted = self._is_genuinely_corrupted(rec)
+            if genuinely_corrupted:
+                n_genuinely_corrupted += 1
+
             if action == DecisionAction.AUTO_REPAIR:
                 n_auto += 1
                 correct = self._is_repair_correct(rec)
@@ -314,7 +378,13 @@ class CostEvaluator:
                 total_cost += self.c_human
             else:  # ABSTAIN
                 n_abstain += 1
-                total_cost += self.c_abstain
+                # Realised counterpart of E[abstain] = q * C_abstain:
+                # charged only when the error actually persists.
+                if genuinely_corrupted:
+                    n_abstain_on_corrupted += 1
+                    total_cost += self.c_abstain
+                else:
+                    n_abstain_on_clean += 1
 
         denom = max(n, 1)
         auto_rate = n_auto / denom
@@ -340,6 +410,9 @@ class CostEvaluator:
             cost_per_wrong_auto=self.c_wrong,
             cost_per_human=self.c_human,
             cost_per_abstain=self.c_abstain,
+            n_abstain_on_corrupted=n_abstain_on_corrupted,
+            n_abstain_on_clean=n_abstain_on_clean,
+            n_genuinely_corrupted=n_genuinely_corrupted,
         )
 
     # ── Internals ──────────────────────────────────────────────────────────────
@@ -351,6 +424,21 @@ class CostEvaluator:
         except (KeyError, IndexError):
             return False
         return self.comparator.are_equal(rec.top_candidate, clean_val)
+
+    def _is_genuinely_corrupted(self, rec: BaselineRecord) -> bool:
+        """
+        True if the flagged cell's dirty value differs from the clean value.
+
+        Mirrors the label rule of DetectionLabelBuilder (Step 1): the same
+        ValueComparator, so NaN == NaN and 371.0 == 371.  A cell that cannot
+        be looked up in clean_df is treated as corrupted, matching the
+        conservative choice in _is_repair_correct (unknown -> not correct).
+        """
+        try:
+            clean_val = self.clean_df.at[rec.row_id, rec.column]
+        except (KeyError, IndexError):
+            return True
+        return not self.comparator.are_equal(rec.dirty_value, clean_val)
 
     def _empty_report(self, method_name: str, dataset: str) -> CostReport:
         return CostReport(

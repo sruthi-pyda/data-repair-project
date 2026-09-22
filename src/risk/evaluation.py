@@ -79,6 +79,12 @@ class EmpiricalCostReport:
     costs : CostConfig
     limitation : str
         Dataset-specific note (e.g. Adult FP limitation).
+    n_genuinely_corrupted : int
+        Records whose dirty value differs from the clean value. Only these
+        incur C_leave when left unchanged; a false-positive detection left
+        alone costs nothing. Keeps this evaluator consistent with
+        E[LEAVE_UNCHANGED] = q · C_leave in RiskCalculator and with the
+        Phase 10 CostEvaluator.
     """
     dataset_name: str
     n_records: int
@@ -97,6 +103,7 @@ class EmpiricalCostReport:
     cost_savings_vs_leave_all: float
     costs: CostConfig
     limitation: str = ""
+    n_genuinely_corrupted: int = 0
 
 
 # ---------------------------------------------------------------------------
@@ -167,11 +174,15 @@ class RiskEvaluator:
         action_counts = ActionCounts()
         n_correct = 0
         n_incorrect = 0
+        n_genuinely_corrupted = 0
         total_policy_cost = 0.0
 
         for rr in risk_records:
             # Ground truth lookup
             correct = self._is_correct(rr)
+            corrupted = self._is_genuinely_corrupted(rr)
+            if corrupted:
+                n_genuinely_corrupted += 1
             if correct:
                 n_correct += 1
             else:
@@ -188,17 +199,19 @@ class RiskEvaluator:
                 total_policy_cost += costs.c_human_review
             else:  # LEAVE_UNCHANGED
                 action_counts.leave += 1
-                # If there was a genuine error and we left it, cost = C_leave
-                # Note: all detected records are (alleged) errors, so cost = C_leave
-                total_policy_cost += costs.c_leave_error
+                # Leaving a genuinely corrupted cell costs C_leave; leaving a
+                # false-positive detection alone is the right outcome and
+                # costs nothing (mirrors E[LEAVE] = q * C_leave).
+                if corrupted:
+                    total_policy_cost += costs.c_leave_error
 
         # Baselines: cost if we applied one action to every record
         # ACCEPT_ALL: incorrect records cost C_wrong, correct cost 0
         cost_accept_all = n_incorrect * costs.c_wrong_repair
         # REVIEW_ALL: every record costs C_human_review
         cost_review_all = n * costs.c_human_review
-        # LEAVE_ALL: every record costs C_leave (all detections are alleged errors)
-        cost_leave_all = n * costs.c_leave_error
+        # LEAVE_ALL: only genuinely corrupted records cost C_leave
+        cost_leave_all = n_genuinely_corrupted * costs.c_leave_error
 
         limitation = _ADULT_LIMITATION if self.dataset_name == "adult" else ""
 
@@ -220,9 +233,33 @@ class RiskEvaluator:
             cost_savings_vs_leave_all=cost_leave_all - total_policy_cost,
             costs=costs,
             limitation=limitation,
+            n_genuinely_corrupted=n_genuinely_corrupted,
         )
 
     # ── Internal helpers ──────────────────────────────────────────────────────
+
+    def _is_genuinely_corrupted(self, rr: RiskRecord) -> bool:
+        """
+        True if the dirty cell differs from the clean cell (NaN == NaN).
+
+        Uses dirty_df rather than any value on the record so the check is
+        independent of what the repairer proposed.
+        """
+        try:
+            clean_val = self.clean_df.at[rr.row_id, rr.column]
+            dirty_val = self.dirty_df.at[rr.row_id, rr.column]
+        except (KeyError, IndexError):
+            return False
+        c_na = isinstance(clean_val, float) and clean_val != clean_val
+        d_na = isinstance(dirty_val, float) and dirty_val != dirty_val
+        if c_na and d_na:
+            return False
+        if c_na or d_na:
+            return True
+        try:
+            return abs(float(clean_val) - float(dirty_val)) >= 1e-9
+        except (TypeError, ValueError):
+            return str(clean_val).strip() != str(dirty_val).strip()
 
     def _is_correct(self, rr: RiskRecord) -> bool:
         """Check whether top_candidate matches the clean value for this cell."""
@@ -293,6 +330,8 @@ def print_risk_report(report: EmpiricalCostReport) -> None:
           f"({100*fracs['review']:5.1f}%)")
     print(f"    LEAVE_UNCHANGED: {report.action_counts.leave:>5}  "
           f"({100*fracs['leave']:5.1f}%)")
+    print(f"  Genuinely corrupted (dirty != clean): {report.n_genuinely_corrupted} "
+          f"of {report.n_records}  (only these cost C_leave when left)")
 
     print(f"\n  Cost parameters: wrong={report.costs.c_wrong_repair}, "
           f"review={report.costs.c_human_review}, "
