@@ -82,7 +82,10 @@ evaluator penalises the policy for correctly ignoring false alarms.
       builder is sole clean reader); on real BC k=1.5 data q(iqr_outlier) < 0.1
       and q(missing_value) > 0.95.
 - [x] 1.5 Commit.
-- [ ] 1.6 (Step 6 check) Beta(s,s) prior pulls tiny 100%-corrupted groups
+- [x] 1.6 (RESOLVED by experiments/smoothing_ablation.py: s in {0,0.5,1,5,20}
+      changes zero decisions and zero costs on every scenario. Closest margin
+      is BC format_check at s=20: q=0.512 vs boundary 0.500. See
+      docs/cost_semantics.md 5.)  Beta(s,s) prior pulls tiny 100%-corrupted groups
       toward 0.5 (BC format_check, 3 records → q=0.67). Harmless at current
       costs (0.67×10 > 5). If Step 6 shows a decision flipped by this, switch
       to shrinkage toward the global rate: (k + s·g)/(n + s).
@@ -155,6 +158,15 @@ evaluator penalises the policy for correctly ignoring false alarms.
 - [ ] 5.4 AppTest: BC with k=1.5 shows all three counts > 0; toggling
       outliers on SF makes ABSTAIN > 0; q metric present. Plot tests.
 - [ ] 5.5 Commit.
+
+### Step 5b — Cost semantics (added after methodological review)
+- [x] 5b.1 docs/cost_semantics.md: define C_abstain, both realised-cost
+      equations, why (a), flag-cost decision-invariance, Adult framing with
+      false negatives, derived (p,q) regions verified on a grid, smoothing
+      ablation, q=1 fallback as assumption, paper checklist.
+- [x] 5b.2 experiments/smoothing_ablation.py.
+- [ ] 5b.3 Tests pinning the region boundaries and the realised-cost
+      equation of 2 (guard against silent semantic drift).
 
 ### Step 6 — Honest experiment table (feeds Phase 13)
 - [ ] 6.1 `experiments/three_actions_ablation.py` → markdown table:
