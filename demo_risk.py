@@ -21,6 +21,7 @@ from pathlib import Path
 
 import numpy as np
 
+from src.console import enable_unicode_stdout
 from src.calibration.calibrator import (
     CalibrationBuilder,
     LogisticCalibrator,
@@ -190,6 +191,7 @@ def run_dataset(name: str, loader: DataLoader):
 
 
 def main() -> None:
+    enable_unicode_stdout()
     loader = DataLoader("datasets")
 
     for name in DATASETS:

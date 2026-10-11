@@ -36,6 +36,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from src.console import enable_unicode_stdout
 from src.decision.policy import DecisionAction, DecisionPolicy  # noqa: E402
 from src.calibration.detection_calibrator import (  # noqa: E402
     DetectionLabelBuilder,
@@ -136,6 +137,7 @@ def run_scenario(dataset: str, iqr_k: float, flag_outliers, cap: int) -> None:
 
 
 def main() -> None:
+    enable_unicode_stdout()
     print("SMOOTHING ABLATION — is calibrated abstention robust to the prior?")
     print("Costs are experimental penalty units. C_leave is charged only when a")
     print("genuinely corrupted cell is left unrepaired (see docs/cost_semantics.md).")

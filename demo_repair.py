@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import sys
 
+from src.console import enable_unicode_stdout
 from src.data.loader import DataLoader
 from src.data.profiler import profile_dataset
 from src.detection.detector import Detector
@@ -81,6 +82,7 @@ def run_dataset(name: str, loader: DataLoader) -> None:
 
 
 def main() -> None:
+    enable_unicode_stdout()
     loader = DataLoader("datasets")
 
     discovered = {name for name, _ in loader.discover.__self__._root.iterdir()

@@ -81,6 +81,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from src.console import enable_unicode_stdout
 from src.baselines.baselines import (  # noqa: E402
     DEFAULT_THRESHOLDS,
     AlwaysAutoBaseline,
@@ -734,6 +735,7 @@ _HEADER = [
 
 
 def main() -> None:
+    enable_unicode_stdout()
     results = [run_scenario(*s) for s in SCENARIOS]
 
     lines: List[str] = list(_HEADER)

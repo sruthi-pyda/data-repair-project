@@ -361,8 +361,8 @@ calibrator is a cheap, real contribution and a natural ablation table.
 **Done** on `feat/phase11-dashboard`. `streamlit run app.py`, offline, no key.
 The original spec follows; all of it is implemented. Verified by
 `tests/test_app.py` (AppTest, headless) including the slider-flips-decision
-interaction. Known Windows quirk: demo scripts need `PYTHONIOENCODING=utf-8`
-because they print box-drawing characters; the app itself is unaffected.
+interaction. (The Windows cp1252 crash in the demo scripts is fixed: every script
+calls `src/console.py::enable_unicode_stdout()`; no env var needed.)
 
 Sidebar: dataset selector, mock/real mode, three cost sliders, confidence threshold
 for the baseline, n samples, random seed.
@@ -453,11 +453,8 @@ python demo_risk.py
 streamlit run app.py
 
 # Experiments (deterministic, seed 42)
-PYTHONIOENCODING=utf-8 python experiments/smoothing_ablation.py
-PYTHONIOENCODING=utf-8 python experiments/three_actions_ablation.py
-
-# NOTE (Windows): demo and experiment scripts print box-drawing characters and
-# crash on a cp1252 console. Always set PYTHONIOENCODING=utf-8. The app is fine.
+python experiments/smoothing_ablation.py
+python experiments/three_actions_ablation.py
 
 # NOT YET WORKING — Phase 13 must build this (use src/pipeline/runner.py)
 python run_experiment.py --dataset adult --mode mock
