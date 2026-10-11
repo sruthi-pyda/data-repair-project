@@ -70,6 +70,34 @@ DETECTOR KNOBS
 experiment options. The defaults reproduce the historical runs; k=1.5 is the
 detector-precision ablation in docs/three_actions_plan.md.
 
+TWO SEEDS, TWO SOURCES OF RANDOMNESS
+====================================
+``run_pipeline`` takes two independent seeds, because two different things
+are random and conflating them would make a "confidence interval" that
+mixes them (docs/phase13_plan.md §0):
+
+    seed        drives MockRepairer and UncertaintyEstimator — i.e. which
+                repair candidates are proposed and how noisy their
+                confidences are. Changing it changes the *predictions*.
+    split_seed  drives the calibration train/eval split ONLY — both the
+                Phase 6 split for p (``_calibrate_all`` and the reported
+                ``calibrate_dataset`` comparison) and the Phase 6b split
+                for q (``fit_detection_calibrator``). Changing it leaves
+                every detection, repair candidate and raw confidence
+                bit-identical and moves only the learned p and q.
+
+``split_seed=None`` (the default) means "use ``seed``", which reproduces
+every historical run bit-for-bit. Repeated-split confidence intervals hold
+``seed`` fixed and vary ``split_seed``
+(:func:`src.experiments.aggregate.repeated_splits`); a separate sweep varies
+``seed`` to show sensitivity to mock-repair noise. They are different
+experiments and are reported as different things.
+
+``split_seed`` is a decision-side knob: it chooses which *labelled* rows
+the calibrators learn from. It is not ground truth and it is not a
+detector or repairer setting, so it never changes what the pipeline
+*observes* — only how confident it is about it.
+
 CALIBRATOR SELECTION
 ====================
 Logistic, isotonic and multivariate calibrators are fitted on a 70/30 split
@@ -205,6 +233,17 @@ class PipelineBundle:
 
     ``iqr_k`` and ``flag_outliers`` record the detector settings actually
     used, so an experiment table can label its rows.
+
+    ``seed`` and ``split_seed`` record the two independent seeds (see the
+    module docstring). ``seed`` is the prediction-side seed: it fixes the
+    mock repairs and their raw confidences. ``split_seed`` is a
+    DECISION-SIDE knob and nothing more — it selects which labelled rows
+    the p and q calibrators train on, so it moves ``calibrated_probs`` and
+    ``corruption_probs`` while leaving ``detections``, ``repair_results``
+    and ``unc_records`` untouched. It is not ground truth, and varying it
+    is not a second look at the clean data: the leakage rules above are
+    unchanged. When ``run_pipeline`` is called without ``split_seed`` it
+    equals ``seed``.
     """
 
     dataset: str
@@ -236,6 +275,9 @@ class PipelineBundle:
     detection_note: Optional[str] = None
     iqr_k: float = DEFAULT_IQR_K
     flag_outliers: bool = True
+
+    # Phase 13 addition (defaulted so older constructors keep working).
+    split_seed: int = 42
 
     @property
     def n_records(self) -> int:
@@ -294,6 +336,7 @@ def run_pipeline(
     iqr_k: float = DEFAULT_IQR_K,
     flag_outliers: Optional[bool] = None,
     detection_smoothing: float = DEFAULT_DETECTION_SMOOTHING,
+    split_seed: Optional[int] = None,
 ) -> PipelineBundle:
     """
     Run Phases 1–6 (plus detection calibration) for one dataset and return
@@ -320,6 +363,14 @@ def run_pipeline(
         uses the per-dataset default (:func:`default_flag_outliers`).
     detection_smoothing : float
         Beta(s, s) prior for the detection calibrator (q). Must be >= 0.
+    split_seed : int or None
+        Seed for the calibration train/eval split ONLY — both the Phase 6
+        split for p and the Phase 6b split for q. ``None`` (default) means
+        "use ``seed``", which is bit-identical to every historical run.
+        Must be an int >= 0 when given. Varying it with ``seed`` fixed is
+        the repeated-split experiment: detections, repairs and raw
+        confidences are unchanged, only the learned p and q move. See the
+        module docstring.
     """
     if dataset not in DATASETS:
         raise ValueError(f"Unknown dataset '{dataset}'. Choose from {DATASETS}.")
@@ -331,6 +382,17 @@ def run_pipeline(
         raise ValueError(f"iqr_k must be > 0, got {iqr_k}")
     if detection_smoothing < 0:
         raise ValueError(f"detection_smoothing must be >= 0, got {detection_smoothing}")
+    if split_seed is None:
+        # The historical path: one seed for everything. Bit-identical.
+        split_seed = seed
+    elif isinstance(split_seed, bool) or not isinstance(split_seed, (int, np.integer)):
+        raise ValueError(
+            f"split_seed must be an int >= 0 or None, got {split_seed!r} "
+            f"({type(split_seed).__name__})"
+        )
+    elif split_seed < 0:
+        raise ValueError(f"split_seed must be >= 0, got {split_seed}")
+    split_seed = int(split_seed)
     if flag_outliers is None:
         flag_outliers = default_flag_outliers(dataset)
 
@@ -350,9 +412,12 @@ def run_pipeline(
     detection_labels = DetectionLabelBuilder().build(
         detections, clean_df, dirty_df
     )
+    # split_seed (not seed) picks the train/eval split: Phase 6b's half of
+    # the repeated-split experiment.
     det_calibrator, det_report = fit_detection_calibrator(
-        detections, detection_labels, seed=seed, eval_fraction=eval_fraction,
-        dataset_name=dataset, smoothing=detection_smoothing,
+        detections, detection_labels, seed=split_seed,
+        eval_fraction=eval_fraction, dataset_name=dataset,
+        smoothing=detection_smoothing,
     )
     corruption_probs = [float(q) for q in det_calibrator.predict(detections)]
     detection_note = det_report.limitation
@@ -374,16 +439,17 @@ def run_pipeline(
     comparison: Optional[CalibrationComparison] = None
     method, note, probs = "none", None, []
     if cal_samples:
+        # Both are splits, so both take split_seed, not seed.
         comparison = calibrate_dataset(
-            cal_samples, dataset, eval_fraction=eval_fraction, seed=seed
+            cal_samples, dataset, eval_fraction=eval_fraction, seed=split_seed
         )
-        method, note, probs = _calibrate_all(cal_samples, seed, eval_fraction)
+        method, note, probs = _calibrate_all(cal_samples, split_seed, eval_fraction)
 
     logger.info(
         "run_pipeline '%s': %d/%d detections (iqr_k=%.2f, outliers=%s), "
-        "calibration=%s, detection calibrator fitted=%s",
+        "seed=%d split_seed=%d, calibration=%s, detection calibrator fitted=%s",
         dataset, len(detections), len(all_detections), iqr_k, flag_outliers,
-        method, det_calibrator.is_fitted(),
+        seed, split_seed, method, det_calibrator.is_fitted(),
     )
     return PipelineBundle(
         dataset=dataset,
@@ -409,6 +475,7 @@ def run_pipeline(
         detection_note=detection_note,
         iqr_k=float(iqr_k),
         flag_outliers=bool(flag_outliers),
+        split_seed=split_seed,
     )
 
 
@@ -418,6 +485,10 @@ def _calibrate_all(
     """
     Fit the three calibrators on a split, pick the lowest eval Brier, and
     return calibrated probabilities for *every* sample in input order.
+
+    ``seed`` here is the SPLIT seed (``run_pipeline`` passes its
+    ``split_seed``); the parameter name is kept for backward compatibility
+    with existing callers and tests.
 
     Returns (method_name, note, probs). ``note`` is set when the result is a
     fallback rather than a fitted calibrator.

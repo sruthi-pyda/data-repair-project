@@ -99,16 +99,16 @@ splits" visible instead of silently averaging fallbacks.
 ## 2. Steps
 
 ### Step 1 — split_seed + aggregation (`src/pipeline/runner.py`, new `src/experiments/`)
-- [ ] 1.1 `split_seed` param; default None → `seed`; bundle field; used by
+- [x] 1.1 `split_seed` param; default None → `seed`; bundle field; used by
       both `_calibrate_all` and the detection calibrator. Default path
       bit-identical (assert on a p/q comparison test).
-- [ ] 1.2 `src/experiments/aggregate.py` per the contract above.
-- [ ] 1.3 Tests: interval maths against a hand-computed example and
+- [x] 1.2 `src/experiments/aggregate.py` per the contract above.
+- [x] 1.3 Tests: interval maths against a hand-computed example and
       against scipy where available; degenerate inputs (n=1, all equal,
       empty); `n_fitted` counts; determinism; `split_seed=None` identical
       to today; different `split_seed` changes p but NOT detections or
       repairs (the isolation property this whole design rests on).
-- [ ] 1.4 Commit.
+- [x] 1.4 Commit. (1356 tests.)
 
 ### Step 2 — `run_experiment.py`
 - [ ] 2.1 CLI: `--dataset {adult,breast_cancer,smartfactory}` | `--all`,
