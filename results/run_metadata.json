@@ -1,0 +1,250 @@
+{
+  "deterministic": {
+    "base_split_seed": 1000,
+    "baseline_threshold": 0.8,
+    "costs_config": "configs/costs.yaml",
+    "data_root": "datasets",
+    "datasets": [
+      "adult",
+      "breast_cancer",
+      "smartfactory"
+    ],
+    "figure_skips": [],
+    "figures_written": true,
+    "flag_outliers": "auto",
+    "git_commit": "18dd5b2c86f9b7eda9b59a3ce5f85ade536073cb",
+    "iqr_k": 3.0,
+    "mode": "mock",
+    "n_records": 0,
+    "n_splits": 20,
+    "paper_grade": true,
+    "per_dataset": {
+      "adult": {
+        "costs": {
+          "c_human_review": 2.0,
+          "c_leave_error": 5.0,
+          "c_wrong_repair": 10.0,
+          "units": "experimental penalty units"
+        },
+        "figures": [
+          "adult_reliability.png",
+          "adult_confidence.png",
+          "adult_cost_comparison.png",
+          "adult_action_distribution.png",
+          "adult_threshold_sweep.png",
+          "adult_decision_map.png"
+        ],
+        "flag_outliers_resolved": true,
+        "iqr_k": 3.0,
+        "n_columns_dirty": 15,
+        "n_decided_cells": 5829,
+        "n_detected_genuine": 0,
+        "n_detections_total": 5829,
+        "n_false_negatives": 1701,
+        "n_genuine_corruptions_full_dataset": 1701,
+        "n_prediction_rows": 5829,
+        "n_records_carried": 5829,
+        "n_rows_dirty": 45222,
+        "p_calibration_fallback": true,
+        "p_calibration_method": "base-rate fallback (no calibrator fitted)",
+        "q_calibrator_fitted": true,
+        "repeated_splits": {
+          "available": true,
+          "error": null,
+          "n_fitted": {
+            "isotonic": 0,
+            "logistic": 0,
+            "multivariate": 0,
+            "raw": 20
+          },
+          "n_splits": 20,
+          "split_seeds": [
+            1000,
+            1001,
+            1002,
+            1003,
+            1004,
+            1005,
+            1006,
+            1007,
+            1008,
+            1009,
+            1010,
+            1011,
+            1012,
+            1013,
+            1014,
+            1015,
+            1016,
+            1017,
+            1018,
+            1019
+          ]
+        },
+        "top1_repair_correct": 0
+      },
+      "breast_cancer": {
+        "costs": {
+          "c_human_review": 5.0,
+          "c_leave_error": 10.0,
+          "c_wrong_repair": 50.0,
+          "units": "experimental penalty units"
+        },
+        "figures": [
+          "breast_cancer_reliability.png",
+          "breast_cancer_confidence.png",
+          "breast_cancer_cost_comparison.png",
+          "breast_cancer_action_distribution.png",
+          "breast_cancer_threshold_sweep.png",
+          "breast_cancer_decision_map.png"
+        ],
+        "flag_outliers_resolved": true,
+        "iqr_k": 3.0,
+        "n_columns_dirty": 12,
+        "n_decided_cells": 355,
+        "n_detected_genuine": 355,
+        "n_detections_total": 392,
+        "n_false_negatives": 276,
+        "n_genuine_corruptions_full_dataset": 631,
+        "n_prediction_rows": 355,
+        "n_records_carried": 392,
+        "n_rows_dirty": 699,
+        "p_calibration_fallback": false,
+        "p_calibration_method": "isotonic",
+        "q_calibrator_fitted": true,
+        "repeated_splits": {
+          "available": true,
+          "error": null,
+          "n_fitted": {
+            "isotonic": 20,
+            "logistic": 20,
+            "multivariate": 20,
+            "raw": 20
+          },
+          "n_splits": 20,
+          "split_seeds": [
+            1000,
+            1001,
+            1002,
+            1003,
+            1004,
+            1005,
+            1006,
+            1007,
+            1008,
+            1009,
+            1010,
+            1011,
+            1012,
+            1013,
+            1014,
+            1015,
+            1016,
+            1017,
+            1018,
+            1019
+          ]
+        },
+        "top1_repair_correct": 239
+      },
+      "smartfactory": {
+        "costs": {
+          "c_human_review": 2.0,
+          "c_leave_error": 5.0,
+          "c_wrong_repair": 25.0,
+          "units": "experimental penalty units"
+        },
+        "figures": [
+          "smartfactory_reliability.png",
+          "smartfactory_confidence.png",
+          "smartfactory_cost_comparison.png",
+          "smartfactory_action_distribution.png",
+          "smartfactory_threshold_sweep.png",
+          "smartfactory_decision_map.png"
+        ],
+        "flag_outliers_resolved": false,
+        "iqr_k": 3.0,
+        "n_columns_dirty": 19,
+        "n_decided_cells": 7093,
+        "n_detected_genuine": 7093,
+        "n_detections_total": 7093,
+        "n_false_negatives": 0,
+        "n_genuine_corruptions_full_dataset": 7093,
+        "n_prediction_rows": 7093,
+        "n_records_carried": 7093,
+        "n_rows_dirty": 23645,
+        "p_calibration_fallback": false,
+        "p_calibration_method": "isotonic",
+        "q_calibrator_fitted": true,
+        "repeated_splits": {
+          "available": true,
+          "error": null,
+          "n_fitted": {
+            "isotonic": 20,
+            "logistic": 20,
+            "multivariate": 20,
+            "raw": 20
+          },
+          "n_splits": 20,
+          "split_seeds": [
+            1000,
+            1001,
+            1002,
+            1003,
+            1004,
+            1005,
+            1006,
+            1007,
+            1008,
+            1009,
+            1010,
+            1011,
+            1012,
+            1013,
+            1014,
+            1015,
+            1016,
+            1017,
+            1018,
+            1019
+          ]
+        },
+        "top1_repair_correct": 2042
+      }
+    },
+    "phase": 13,
+    "quick": false,
+    "repairer": "src/repair/mock_repair.py (mock; no LLM call)",
+    "script": "run_experiment.py",
+    "seed": 42,
+    "split_seed_of_representative_run": 42,
+    "threshold_sweep": [
+      0.5,
+      0.6,
+      0.7,
+      0.8,
+      0.9
+    ],
+    "versions": {
+      "matplotlib": "3.10.7",
+      "numpy": "2.3.0",
+      "pandas": "2.3.0",
+      "platform": "Windows-11-10.0.26200-SP0",
+      "python": "3.13.4",
+      "sklearn": "1.7.0"
+    }
+  },
+  "non_deterministic": {
+    "_why": "The clock, the elapsed time and the invocation paths differ between two runs of the same command by design. Everything under 'deterministic' must be byte-identical.",
+    "argv": [
+      "--all",
+      "--splits",
+      "20",
+      "--seed",
+      "42"
+    ],
+    "output_dir": "results",
+    "utc_timestamp": "2026-10-11T16:32:22.829752+00:00",
+    "wall_time_seconds": 656.362
+  }
+}

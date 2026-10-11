@@ -217,7 +217,11 @@ scaffolding is written, the API client is not.
 
 ### Verified results (reproduced, mock mode)
 
-Calibration:
+**Superseded by `results/RESULTS.md`** (Phase 13, 20 splits with confidence
+intervals). The single-split numbers below are kept only as the historical
+record; do not quote them. Two of them did not survive resampling: logistic
+vs raw on breast_cancer is indistinguishable, and the multivariate calibrator
+is worse than isotonic on smartfactory.
 
 | Dataset | Method | Brier | ECE |
 |---|---|---|---|
@@ -417,17 +421,28 @@ clean value.
 **This phase is optional for the review but mandatory for the paper** — the title
 says "LLM-Assisted" and there is currently not one real model call in the project.
 
-### Phase 13 — Experiments, results, docs
+### Phase 13 — Experiments, results, docs (DONE)
 
-`run_experiment.py` is empty, so `python run_experiment.py --dataset adult --mode mock`
-does not work. Build it first — every other phase's reproducibility depends on it.
+`python run_experiment.py --all --splits 20` regenerates every number and
+figure in ~11 minutes, deterministically. Four table groups + per-cell
+predictions + run metadata (git commit, seeds, versions). Both deferred §5.4
+items are resolved: repeated splits with bootstrap confidence intervals, and
+the 500-record cap is gone (full datasets).
 
-Produce `results/{figures,tables,predictions}/` with fixed seeds. Four table groups:
-repair quality, calibration (raw vs calibrated), risk-aware performance, policy
-comparison. Plots: reliability diagrams, confidence distributions, cost comparison,
-action distributions, baseline vs proposed.
+**Read `results/RESULTS.md`.** Headline: the proposed policy is the only one
+with zero worst-case regret across the three datasets (best or tied-best on
+each); every fixed baseline is beaten badly somewhere. It wins outright on
+breast_cancer (1,615 vs 1,720), ties always-abstain on adult (0) while beating
+everything else by 11,658, and ties always-human on smartfactory (14,186) —
+reported as a tie, not spun.
 
-Do not fabricate results. If the proposed method loses on a dataset, report it.
+Negative results that must be carried into the paper: the multivariate
+calibrator (§5.3) is not an improvement — indistinguishable from raw on
+breast_cancer Brier and worse than isotonic on smartfactory; logistic vs raw
+on breast_cancer is noise; adult cannot be calibrated at all (0/20 splits).
+
+Still open for the paper: a cost-sensitivity sweep (one config per dataset so
+far), and the dirty-data-statistics ablation for the §3 soft-leakage caveat.
 
 ---
 

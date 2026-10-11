@@ -111,13 +111,13 @@ splits" visible instead of silently averaging fallbacks.
 - [x] 1.4 Commit. (1356 tests.)
 
 ### Step 2 — `run_experiment.py`
-- [ ] 2.1 CLI: `--dataset {adult,breast_cancer,smartfactory}` | `--all`,
+- [x] 2.1 CLI: `--dataset {adult,breast_cancer,smartfactory}` | `--all`,
       `--mode {mock,real}` (real → not implemented, exit 2 with a clear
       message pointing at Phase 12), `--n-records 0`, `--seed 42`,
       `--splits 20`, `--iqr-k 3.0`, `--flag-outliers {auto,on,off}`,
       `--output-dir results`, `--quick` (small caps + 3 splits, for CI),
       `--no-figures`.
-- [ ] 2.2 Writes, all regenerable, all deterministic:
+- [x] 2.2 Writes, all regenerable, all deterministic:
       - `results/tables/*.md` and matching `*.csv`
       - `results/figures/*.png`
       - `results/predictions/<dataset>.csv` — one row per decided cell:
@@ -127,7 +127,7 @@ splits" visible instead of silently averaging fallbacks.
         cell_genuinely_corrupted.
       - `results/run_metadata.json` — versions, seeds, git commit, UTC
         timestamp, per-dataset row/detection counts, wall time.
-- [ ] 2.3 Four table groups (CLAUDE.md §6):
+- [x] 2.3 Four table groups (CLAUDE.md §6):
       **T1 repair quality** — detections, precision/recall/F1, top-1
       accuracy, false negatives, genuine corruptions.
       **T2 calibration** — raw vs logistic vs isotonic vs multivariate,
@@ -136,28 +136,31 @@ splits" visible instead of silently averaging fallbacks.
       wrong-auto rate, abstentions on clean vs corrupted cells.
       **T4 policy comparison** — proposed vs always-auto vs always-human
       vs always-abstain vs threshold sweep, cost with CI.
-- [ ] 2.4 Figures: reliability diagram per dataset, confidence
+- [x] 2.4 Figures: reliability diagram per dataset, confidence
       distribution, cost comparison, action distribution, baseline vs
       proposed, and the (p,q) decision map with the population.
-- [ ] 2.5 Tests (`tests/test_run_experiment.py`): `--quick --all` writes
+- [x] 2.5 Tests (`tests/test_run_experiment.py`): `--quick --all` writes
       every expected artifact; byte-identical on re-run (determinism);
       `--mode real` exits 2 with the Phase 12 message; unknown dataset
       exits non-zero; predictions CSV has one row per decided cell and
       its ground-truth columns are the only ones flagged as such;
       metadata records the git commit; `--no-figures` skips PNGs.
-- [ ] 2.6 Commit.
+- [x] 2.6 Commit.
 
 ### Step 3 — run it for real and read the results
-- [ ] 3.1 `python run_experiment.py --all` on full datasets, 20 splits.
-- [ ] 3.2 Write `results/RESULTS.md`: the four tables, the figures, and
+- [x] 3.1 `python run_experiment.py --all` on full datasets, 20 splits.
+- [x] 3.2 Write `results/RESULTS.md`: the four tables, the figures, and
       an honest reading — what the numbers support, what they do not,
       where the method loses, and which rows are fallbacks.
-- [ ] 3.3 Update CLAUDE.md §4 with the reproducible numbers and mark
+- [x] 3.3 Update CLAUDE.md §4 with the reproducible numbers and mark
       Phase 13 done.
-- [ ] 3.4 Commit.
+- [x] 3.4 Commit.
 
 ---
 
 ## 3. Results
 
-_(filled in at Step 3)_
+See `results/RESULTS.md`. Headline: the proposed policy has zero
+worst-case regret across the three datasets; no fixed baseline does.
+Two negative results recorded there: the multivariate calibrator is not
+an improvement, and logistic vs raw on breast_cancer is noise.
