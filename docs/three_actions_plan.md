@@ -148,16 +148,16 @@ evaluator penalises the policy for correctly ignoring false alarms.
 - [x] 4.5 Commit. (1170 tests.)
 
 ### Step 5 — Dashboard
-- [~] 5.1 Sidebar: "Detector" group — IQR fence k slider (1.0–3.0, default
+- [x] 5.1 Sidebar: "Detector" group — IQR fence k slider (1.0–3.0, default
       3.0) and "flag statistical outliers" toggle (default per dataset).
-- [ ] 5.2 Section 4: add "P(cell genuinely corrupted) q" metric + how it was
+- [x] 5.2 Section 4: add "P(cell genuinely corrupted) q" metric + how it was
       learned. Section 5: show `q × C_abstain`. Section 7: abstain line at
       the cell's q; new 2-D (p, q) decision-map figure; caption explains
       which action is unreachable and why, per current q.
-- [ ] 5.3 `plots.decision_map(c_wrong, c_human, c_abstain, point=(p,q))`.
-- [ ] 5.4 AppTest: BC with k=1.5 shows all three counts > 0; toggling
+- [x] 5.3 `plots.decision_map(c_wrong, c_human, c_abstain, point=(p,q))`.
+- [x] 5.4 AppTest: BC with k=1.5 shows all three counts > 0; toggling
       outliers on SF makes ABSTAIN > 0; q metric present. Plot tests.
-- [ ] 5.5 Commit.
+- [x] 5.5 Commit.
 
 ### Step 5b — Cost semantics (added after methodological review)
 - [x] 5b.1 docs/cost_semantics.md: define C_abstain, both realised-cost
@@ -165,24 +165,24 @@ evaluator penalises the policy for correctly ignoring false alarms.
       false negatives, derived (p,q) regions verified on a grid, smoothing
       ablation, q=1 fallback as assumption, paper checklist.
 - [x] 5b.2 experiments/smoothing_ablation.py.
-- [ ] 5b.3 Tests pinning the region boundaries and the realised-cost
+- [x] 5b.3 Tests pinning the region boundaries and the realised-cost
       equation of 2 (guard against silent semantic drift).
 
 ### Step 6 — Honest experiment table (feeds Phase 13)
-- [ ] 6.1 `experiments/three_actions_ablation.py` → markdown table:
+- [x] 6.1 `experiments/three_actions_ablation.py` → markdown table:
       rows = {BC k=3, BC k=1.5, SF off, SF on, Adult} ×
       {constant abstain (old), calibrated abstain (new)};
       cols = action shares, realised cost, vs always-auto / threshold
       baselines; plus detection-calibration Brier (q vs raw score) and the
       score-bin ablation.
-- [ ] 6.2 Write results into this file (§3) and CLAUDE.md §5.2.
-- [ ] 6.3 Commit.
+- [x] 6.2 Write results into this file (§3) and CLAUDE.md §5.2.
+- [x] 6.3 Commit.
 
 ### Step 7 — Docs and handoff
-- [ ] 7.1 CLAUDE.md: §2 formulas, §3 (second permitted clean_df reader),
+- [x] 7.1 CLAUDE.md: §2 formulas, §3 (second permitted clean_df reader),
       §4 state, §5.2 resolved. Memory note.
-- [ ] 7.2 CLAUDE.md §9: record that the user owns the project now.
-- [ ] 7.3 Commit.
+- [x] 7.2 CLAUDE.md §9: record that the user owns the project now.
+- [x] 7.3 Commit.
 
 ---
 
@@ -205,6 +205,14 @@ D3. Detector fence k=1.5 as an **experiment option** (default stays 3.0).
     the default, so no existing numbers move.
 
 ## 3. Results
+
+**Full ablation: results/tables/three_actions_ablation.md** (regenerate with
+`PYTHONIOENCODING=utf-8 python experiments/three_actions_ablation.py`).
+Headline: the learned q accounts for 100% of the cost reduction; the evaluator
+change (V2) contributes 0 on its own and is a *precondition*, not an independent
+gain; raw detection_score as q (V4) reproduces almost nothing, confirming the
+rejected idea by measurement; smoothing (V5) changes nothing.
+
 
 Measured 2026-09-22, seed 42, full datasets, learned q (Steps 1-4).
 

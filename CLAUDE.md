@@ -51,6 +51,11 @@ dirty.csv
    │             → calibrated probability p via Platt/logistic or isotonic
    │             THE ONLY PLACE clean_df LEGITIMATELY ENTERS (0/1 labels only)
    │
+   ├─ Phase 6b   src/calibration/detection_calibrator.py
+   │             → q = P(flagged cell is genuinely corrupted)
+   │             Learned per detection_method from 0/1 corruption labels.
+   │             SECOND legitimate clean_df entry point (labels only).
+   │
    ├─ Phase 7    src/risk/cost_model.py
    │             → RiskCalculator, ExpectedCosts, RiskRecord
    │             Actions: ACCEPT_REPAIR / HUMAN_REVIEW / LEAVE_UNCHANGED
@@ -71,17 +76,35 @@ dirty.csv
 
 ### Decision formulas
 
-For calibrated probability of correctness `p`:
+For calibrated probability of correctness `p` and calibrated probability that the
+flagged cell is genuinely corrupted `q`:
 
 ```
 E[AUTO_REPAIR]  = (1 - p) * C_wrong
-E[HUMAN_REVIEW] = C_human       (constant in p)
-E[ABSTAIN]      = C_abstain     (constant in p)
+E[HUMAN_REVIEW] = C_human           (constant in p and q)
+E[ABSTAIN]      = q * C_abstain     (constant in p, scales with q)
 
 action = argmin over the three
 ```
 
 Tie-break priority (documented in `policy.py`): `AUTO_REPAIR > HUMAN_REVIEW > ABSTAIN`.
+
+`q` defaults to 1.0 everywhere, which reproduces the original constant formula
+bit-for-bit. It is learned by `src/calibration/detection_calibrator.py` (Phase 6b).
+Derived decision boundaries, verified against the implementation on a 201x201 grid
+with zero mismatches:
+
+```
+AUTO vs HUMAN      p* = 1 - C_human / C_wrong        (vertical)
+HUMAN vs ABSTAIN   q* = C_human / C_abstain          (horizontal)
+AUTO vs ABSTAIN    p  = 1 - q * C_abstain / C_wrong  (sloped)
+```
+
+**Honest limitation, state it in the paper:** `q*` is horizontal, so for a single
+cell with fixed `q` one of HUMAN/ABSTAIN is still unreachable — both are constant
+in `p` and never cross. What the mechanism changes is *which* of the two is live,
+per cell, on evidence. "All three actions reachable" is a claim about the
+population, not about every cell. See `docs/cost_semantics.md`.
 
 Costs live in `configs/costs.yaml`. They are **experimental assumptions in abstract
 penalty units**. Never describe them as monetary, clinical, or as supplied by the
@@ -102,8 +125,15 @@ REIN benchmark — the codebase is careful about this and papers/docs must stay 
 
 **Permitted:**
 
-- `CalibrationBuilder.build()` reads `clean_df` to produce 0/1 correctness labels
+- `CalibrationBuilder.build()` reads `clean_df` to produce 0/1 *repair-correctness*
+  labels (feeds `p`)
+- `DetectionLabelBuilder.build()` reads `clean_df` to produce 0/1 *cell-corrupted*
+  labels (feeds `q`) — same permitted use, symmetric with the above
 - All of `src/evaluation/` reads `clean_df` to score decisions after the fact
+
+Both calibrators are fitted on a train split and predict for all records; neither
+`fit` nor `predict` ever receives clean data. `decide_all()` has no ground-truth
+parameter by construction.
 
 There are existing tests asserting no-leakage. Keep them passing and add equivalents
 for any new module.
@@ -201,11 +231,18 @@ repairing every statistical outlier. Preserve it; do not tune it away.
 
 ## 5. Known issues — fix these first
 
-**Status (2026-09-22): 5.1, 5.2, 5.3 and the first bullet of 5.4 are fixed on
-branch `fix/known-issues-phase5`.** The text below is kept as the record of
-what was wrong and why the fixes were chosen. Still open: repeated-split
-confidence intervals and the 500-record demo cap (both Phase 13), and the
-p-dependent abstention cost (discuss before implementing).
+**Status: 5.1, 5.2, 5.3 and the first bullet of 5.4 are all resolved.** The text
+below is kept as the record of what was wrong and why each fix was chosen. Still
+open: repeated-split confidence intervals and the 500-record demo cap (both
+Phase 13).
+
+5.2 was resolved properly, not by the cheap config tweak: see
+`docs/cost_semantics.md` and `docs/three_actions_plan.md`. Adult's
+`c_leave_error` is back to the original 5; abstention comes from the learned `q`.
+The detector-confidence version suggested below was **tested and rejected** — it
+changes zero decisions, because `detection_score` is a fixed per-check-type
+constant and not a probability (Adult outliers score ~0.6 while 0% of them are
+genuinely corrupted). That negative result is variant V4 of the ablation.
 
 Multivariate calibration result (mock mode, single split, seed 42):
 breast_cancer Brier 0.2039→0.1983 / ECE 0.1351→0.0650 vs single-feature
@@ -303,6 +340,29 @@ and flip the displayed action live. That single interaction is the whole thesis.
 Leakage rule applies to the UI: never display the clean value beside a dirty cell in
 the decision demo. Ground truth only in a clearly separated evaluation section.
 
+### Phase 6b — Calibrated abstention (done, branch `feat/calibrated-abstention`)
+
+`E[ABSTAIN] = q * C_abstain` with `q` learned per detector check type. Rationale,
+cost definitions, derived regions and the smoothing ablation are in
+`docs/cost_semantics.md`; the step-by-step record is `docs/three_actions_plan.md`.
+
+Key facts for the paper:
+
+- `C_abstain` (config key `c_leave_error`) is **corruption-persistence cost**:
+  charged only when a genuinely corrupted cell is left unrepaired. This is the
+  project's own original definition; the pre-branch evaluator charged it
+  unconditionally, which was inconsistent with it.
+- Any per-flag operational cost is decision-invariant (adds a constant to all
+  three arms) and must be reported separately as `n * C_flag`, never folded into
+  `C_abstain`.
+- Adult's realised cost of 0 means **zero residual-corruption cost on the flagged
+  cells only**. Adult has 1,701 genuine corruptions that the detector never
+  found; they enter no arm of the objective. Always report that alongside.
+- Calibration failure defaults to `q = 1`, preserving the pre-calibration policy.
+  It is a conservative assumption, not evidence.
+- Genuine corruptions per dataset (for results tables): breast_cancer 630,
+  smartfactory 7,093, adult 1,701.
+
 ### Phase 12 — Real LLM (`src/repair/llm_repair.py`)
 
 `prompts.py` already exists. Needs the API client, structured-output parsing, and
@@ -355,6 +415,13 @@ python demo_risk.py
 # Phase 11 dashboard (offline, mock mode)
 streamlit run app.py
 
+# Experiments (deterministic, seed 42)
+PYTHONIOENCODING=utf-8 python experiments/smoothing_ablation.py
+PYTHONIOENCODING=utf-8 python experiments/three_actions_ablation.py
+
+# NOTE (Windows): demo and experiment scripts print box-drawing characters and
+# crash on a cp1252 console. Always set PYTHONIOENCODING=utf-8. The app is fine.
+
 # NOT YET WORKING — Phase 13 must build this (use src/pipeline/runner.py)
 python run_experiment.py --dataset adult --mode mock
 ```
@@ -381,8 +448,15 @@ Config in `configs/default.yaml` and `configs/costs.yaml`. Random seed 42 throug
 
 ## 9. Collaboration
 
-Two-person project. Sruthi Pyda owns the repo and wrote Phases 1–10. Coordinate
-before changing shared interfaces (`RiskRecord`, `UncertaintyRecord`, `CostConfig`,
-`DecisionResult`) or the cost configs, since her results tables depend on them.
+Two-person project. Sruthi Pyda wrote Phases 1–10. **As of 2026-09-22 the project
+is under Saanvi's control**; Sruthi's sign-off is no longer required before
+changing shared interfaces (`RiskRecord`, `UncertaintyRecord`, `CostConfig`,
+`DecisionResult`) or the cost configs.
+
+The replacement rule is evidence, not permission: **a change is kept only if it is
+objectively better for the paper's claim, measured.** If it is not measurably
+better, revert it. Every change on `feat/calibrated-abstention` is backed by a
+before/after measurement; the detector-confidence abstention idea was rejected
+under exactly this rule.
 
 Work on a branch, not directly on `main`.

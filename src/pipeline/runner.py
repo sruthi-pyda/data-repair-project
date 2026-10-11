@@ -530,7 +530,11 @@ def evaluate_policies(
     idx = bundle.decision_indices()
     unc = [bundle.unc_records[i] for i in idx]
     probs = [bundle.calibrated_probs[i] for i in idx]
-    decisions = [decide_all(bundle, costs)[i] for i in idx]
+    # decide_all() decides every record, so call it ONCE and then select.
+    # Calling it inside the comprehension made this O(n^2) and unusable at
+    # Smart Factory's 42,732 records.
+    all_decisions = decide_all(bundle, costs)
+    decisions = [all_decisions[i] for i in idx]
 
     ev = PolicyEvaluation(dataset=bundle.dataset, costs=costs, threshold=threshold)
     if not unc:

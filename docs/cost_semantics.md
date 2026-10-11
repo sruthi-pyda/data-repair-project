@@ -146,7 +146,7 @@ never broken.* The finding is about **not wasting effort on false
 alarms**, not about repairing Adult.
 
 Total genuine corruptions per dataset, for context in any results table:
-breast_cancer 630, smartfactory 7,093, adult 1,701.
+breast_cancer 631, smartfactory 7,093, adult 1,701.
 
 ---
 
