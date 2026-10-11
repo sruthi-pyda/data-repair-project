@@ -150,14 +150,20 @@ invalidates already-reported numbers.
 
 ## 4. Current state
 
-**Phases 1–11 complete. Phases 12–13 not started.**
+**Phases 1–11 complete, plus Phase 6b (calibrated abstention). Phases 12–13
+not started.**
 
-Repo: `github.com/sruthi-pyda/data-repair-project`. Branches off `main`
-(HEAD `5d8cc22`): `fix/known-issues-phase5` (§5 fixes) and
-`feat/phase11-dashboard` (Phase 11, built on top of the fixes). Neither is
-merged yet — see §9 for what to coordinate with Sruthi first.
+Repo: `github.com/sruthi-pyda/data-repair-project`. Three stacked branches off
+`main` (HEAD `5d8cc22`), none merged yet:
 
-Tests: **936 passing** on pandas 2.3.
+```
+main
+ └─ fix/known-issues-phase5      §5.1–5.4 fixes
+     └─ feat/phase11-dashboard   Phase 11
+         └─ feat/calibrated-abstention   Phase 6b  ← current tip
+```
+
+Tests: **1268 passing** on pandas 2.3 (~3 min).
 
 | File | Tests | Phase |
 |---|---|---|
@@ -171,19 +177,30 @@ Tests: **936 passing** on pandas 2.3.
 | `test_policy.py` | 103 | 8 |
 | `test_baselines.py` | 87 | 9 |
 | `test_evaluation.py` | 133 | 10 |
-| `test_pipeline_runner.py` | 31 | 11 |
-| `test_plots.py` | 24 | 11 |
-| `test_app.py` | 15 | 11 |
+| `test_pipeline_runner.py` | 38 | 11 |
+| `test_plots.py` | 58 | 11 |
+| `test_app.py` | 30 | 11 |
+| `test_detection_calibrator.py` | 76 | 6b |
+| `test_calibrated_abstention.py` | 104 | 6b |
+| `test_abstain_realised_cost.py` | ~30 | 6b |
+| `test_decision_regions.py` | 49 | 6b |
+| `test_three_actions_e2e.py` | 12 | 6b |
 
-(Phase 2/6/7/8 files gained regression tests for the §5 fixes.)
+(Phase 2/6/7/8 files also gained regression tests for the §5 fixes.)
 
-**Phase 11 modules:**
+**Phase 11 / 6b modules:**
 
 ```
 src/pipeline/runner.py      ← run_pipeline / decide_all / evaluate_policies
                                shared by app.py and (future) run_experiment.py
-src/visualization/plots.py  ← figure-returning matplotlib helpers
+src/visualization/plots.py  ← figure helpers incl. decision_map (p,q)
+src/calibration/detection_calibrator.py  ← learns q (Phase 6b)
 app.py                      ← Streamlit dashboard: `streamlit run app.py`
+experiments/three_actions_ablation.py    ← main results table
+experiments/smoothing_ablation.py        ← prior-robustness table
+results/tables/three_actions_ablation.md ← generated output
+docs/cost_semantics.md      ← what each cost means; READ BEFORE writing results
+docs/three_actions_plan.md  ← the Phase 6b design record
 .claude/launch.json         ← dev-server config for the desktop-app browser
 ```
 
@@ -219,6 +236,26 @@ Always REVIEW         1775.00   mean 5.0000
 Always LEAVE          3550.00   mean 10.0000
 Top-1 correct: 235 (66.2%)
 ```
+
+**Headline ablation result** (`results/tables/three_actions_ablation.md`,
+realised cost in experimental units, seed 42, full datasets):
+
+| scenario | original | proposed | always-auto | best threshold |
+|---|---|---|---|---|
+| breast_cancer k=3 | 1615 | **1615** (unchanged by design) | 5800 | 1720 |
+| breast_cancer k=1.5 | 2675 | **1750** | 15450 | 2695 |
+| smartfactory outliers off | 14186 | **14186** (unchanged) | 126275 | 14186 |
+| smartfactory outliers on | 85464 | **14186** | 1017250 | 85464 |
+| adult | 11658 | **0** ‡ | 58290 | 11658 |
+
+‡ zero *residual-corruption* cost on the flagged cells only; Adult's 1,701
+genuine corruptions were never detected. Always report both.
+
+The learned `q` accounts for 100% of every reduction. The evaluator change
+alone contributes 0 and is a precondition, not an independent gain. Raw
+`detection_score` as `q` reproduces almost nothing. Smoothing changes nothing.
+The one place the method does harm: at k=1.5, 5 of 195 abstentions land on
+genuinely corrupted cells.
 
 **Adult is a deliberate negative result, not a bug.** Its true corruption is
 income-label flips (valid value → valid value), undetectable from dirty data alone.
