@@ -177,3 +177,227 @@ class TestNoLeakage:
         src = inspect.getsource(P)
         body = src.split('"""', 2)[2]
         assert "clean" not in body.lower()
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Step 5: calibrated abstention — q in the cost curves, and the (p, q) map
+# ═══════════════════════════════════════════════════════════════════════════════
+
+BC_COSTS = (50.0, 5.0, 10.0)  # breast_cancer: C_wrong, C_human, C_abstain
+
+
+def _independent_optimal(p: float, q: float, c_wrong: float, c_human: float,
+                         c_abstain: float) -> str:
+    """
+    Re-derivation of the optimal action written from scratch for this test:
+    the plain argmin of the three expectations with the documented tie
+    priority AUTO_REPAIR > HUMAN_REVIEW > ABSTAIN (``list.index(min(...))``
+    returns the first minimum). It deliberately uses nothing from
+    ``src.visualization.plots`` and does not reuse the region inequalities of
+    docs/cost_semantics.md section 4 — it checks them.
+    """
+    expectations = [(1.0 - p) * c_wrong, c_human, q * c_abstain]
+    names = ("AUTO_REPAIR", "HUMAN_REVIEW", "ABSTAIN")
+    return names[expectations.index(min(expectations))]
+
+
+def _drawn_action(fig: Figure, p_index: int, q_index: int) -> str:
+    """Action the figure actually shaded at a grid cell (row = q, col = p)."""
+    grid = np.asarray(fig.axes[0].images[0].get_array())
+    return P.DECISION_MAP_ACTIONS[int(grid[q_index, p_index])].value
+
+
+def _region_values(fig: Figure) -> set:
+    return set(np.asarray(fig.axes[0].images[0].get_array()).ravel().tolist())
+
+
+class TestExpectedCostCurvesWithQ:
+    def test_abstain_line_sits_at_q_times_c_abstain(self):
+        fig = P.expected_cost_curves(50, 5, 10, p=0.6, corruption_probability=0.3)
+        abstain = fig.axes[0].get_lines()[2]
+        assert np.allclose(abstain.get_ydata(), 0.3 * 10)
+
+    def test_q_one_is_identical_to_not_passing_q(self):
+        a = P.expected_cost_curves(50, 5, 10, p=0.6)
+        b = P.expected_cost_curves(50, 5, 10, p=0.6, corruption_probability=1.0)
+        for la, lb in zip(a.axes[0].get_lines(), b.axes[0].get_lines()):
+            assert np.array_equal(la.get_ydata(), lb.get_ydata())
+            assert np.array_equal(la.get_xdata(), lb.get_xdata())
+        assert a.axes[0].get_ylim() == b.axes[0].get_ylim()
+
+    def test_q_zero_makes_abstention_free(self):
+        fig = P.expected_cost_curves(50, 5, 10, corruption_probability=0.0)
+        assert np.allclose(fig.axes[0].get_lines()[2].get_ydata(), 0.0)
+
+    def test_label_shows_the_formula(self):
+        fig = P.expected_cost_curves(50, 5, 10, corruption_probability=0.25)
+        labels = [line.get_label() for line in fig.axes[0].get_lines()[:3]]
+        assert any("q × C_abstain" in lbl for lbl in labels)
+        assert any("2.5" in lbl for lbl in labels)
+
+    def test_abstain_breakeven_uses_q_times_c_abstain(self):
+        """q=0.3 -> E[ABSTAIN]=3 -> the abstain break-even moves to 1-3/50."""
+        fig = P.expected_cost_curves(50, 5, 10, corruption_probability=0.3)
+        texts = [t.get_text() for t in fig.axes[0].texts]
+        assert any("p*=0.94 vs abstain" in t for t in texts), texts
+        plain = P.expected_cost_curves(50, 5, 10)
+        assert any("p*=0.80 vs abstain" in t.get_text() for t in plain.axes[0].texts)
+
+    @pytest.mark.parametrize("q", [0.0, 1.0, -0.5, 1.5])
+    def test_edge_q_does_not_crash(self, q):
+        assert isinstance(
+            P.expected_cost_curves(10, 2, 5, p=0.5, corruption_probability=q), Figure
+        )
+
+
+class TestReviewAbstainThreshold:
+    def test_normal(self):
+        assert P.review_abstain_threshold(5, 10) == pytest.approx(0.5)
+        assert P.review_abstain_threshold(2, 5) == pytest.approx(0.4)
+
+    def test_zero_abstain_cost_makes_abstention_always_cheaper(self):
+        assert P.review_abstain_threshold(5, 0) == float("inf")
+
+    def test_both_zero_resolves_to_review_by_tie_priority(self):
+        assert P.review_abstain_threshold(0, 0) == 0.0
+
+
+class TestDecisionMap:
+    def test_returns_figure_with_axes_labelled_p_and_q(self):
+        fig = P.decision_map(*BC_COSTS)
+        assert isinstance(fig, Figure)
+        ax = fig.axes[0]
+        assert ax.get_xlabel().endswith("p")
+        assert ax.get_ylabel().endswith("q")
+        assert ax.get_xlim() == (0, 1) and ax.get_ylim() == (0, 1)
+        assert P.COST_UNITS_LABEL in ax.get_title()
+
+    def test_all_three_regions_present_for_breast_cancer_costs(self):
+        fig = P.decision_map(*BC_COSTS)
+        assert _region_values(fig) == {0, 1, 2}
+        labels = [t.get_text() for t in fig.axes[0].texts]
+        for action in P.DECISION_MAP_ACTIONS:
+            assert action.value in labels
+
+    def test_region_membership_matches_independent_derivation(self):
+        """
+        Sweep the drawn grid and compare every sampled cell against
+        ``_independent_optimal``. Cells lying on a boundary (two expectations
+        within 1e-9) are skipped: which side of an exact tie a float lands on
+        is not what this test is about.
+        """
+        fig = P.decision_map(*BC_COSTS)
+        n = P.DECISION_MAP_GRID
+        checked = 0
+        for pi in range(0, n, 3):
+            for qi in range(0, n, 5):
+                p, q = pi / (n - 1), qi / (n - 1)
+                exp = sorted([(1 - p) * 50.0, 5.0, q * 10.0])
+                if exp[1] - exp[0] < 1e-9:
+                    continue
+                expected = _independent_optimal(p, q, *BC_COSTS)
+                assert _drawn_action(fig, pi, qi) == expected, (p, q, expected)
+                checked += 1
+        assert checked > 1000
+
+    @pytest.mark.parametrize("costs", [(50, 5, 10), (25, 2, 5), (10, 2, 5)])
+    def test_membership_matches_derivation_for_every_shipped_config(self, costs):
+        fig = P.decision_map(*costs)
+        n = P.DECISION_MAP_GRID
+        for pi in range(0, n, 17):
+            for qi in range(0, n, 23):
+                p, q = pi / (n - 1), qi / (n - 1)
+                exp = sorted([(1 - p) * costs[0], float(costs[1]), q * costs[2]])
+                if exp[1] - exp[0] < 1e-9:
+                    continue
+                assert _drawn_action(fig, pi, qi) == _independent_optimal(p, q, *costs)
+
+    def test_boundary_lines_are_labelled_with_their_formulas(self):
+        fig = P.decision_map(*BC_COSTS)
+        labels = [t.get_text() for t in fig.axes[0].get_legend().get_texts()]
+        assert any("p* = 1 − C_human/C_wrong = 0.900" in lbl for lbl in labels), labels
+        assert any("q* = C_human/C_abstain = 0.500" in lbl for lbl in labels), labels
+        assert any("p = 1 − q·C_abstain/C_wrong" in lbl for lbl in labels), labels
+
+
+class TestDecisionMapDegenerate:
+    def test_tiny_abstain_cost_removes_the_review_region(self):
+        """q* = 5/0.001 = 5000 >= 1: review is optimal nowhere on the square."""
+        fig = P.decision_map(50, 5, 0.001)
+        vals = _region_values(fig)
+        assert isinstance(fig, Figure)
+        assert 1 not in vals and 2 in vals
+
+    def test_huge_abstain_cost_shrinks_abstention_to_q_near_zero(self):
+        """q* = 5/1e6 ~ 0: abstention survives only on the q = 0 edge."""
+        fig = P.decision_map(50, 5, 1e6)
+        grid = np.asarray(fig.axes[0].images[0].get_array())
+        assert 1 in _region_values(fig)
+        assert (grid == 2).sum() <= grid.shape[1]  # at most the bottom row
+
+    @pytest.mark.parametrize("costs", [
+        (50, 0, 10),      # p* = 1, q* = 0
+        (50, 60, 10),     # p* < 0
+        (50, 5, 0),       # q* = inf, abstention free
+        (50, 0, 0),       # exact tie everywhere -> review by priority
+        (1, 5, 5),        # every boundary off the square
+    ])
+    def test_degenerate_configs_do_not_crash(self, costs):
+        fig = P.decision_map(*costs)
+        assert isinstance(fig, Figure)
+        assert _region_values(fig) <= {0, 1, 2}
+
+    def test_degenerate_config_is_annotated_rather_than_hidden(self):
+        """q* >= 1 removes HUMAN_REVIEW; q* <= 0 removes ABSTAIN. The figure
+        must say which arm vanished instead of silently dropping a colour."""
+        fig = P.decision_map(50, 5, 0.001)          # q* = 5000
+        notes = " ".join(t.get_text() for t in fig.axes[0].texts)
+        assert "HUMAN_REVIEW is optimal nowhere" in notes
+        fig = P.decision_map(50, 0, 10)             # q* = 0
+        notes = " ".join(t.get_text() for t in fig.axes[0].texts)
+        assert "ABSTAIN is optimal nowhere" in notes
+
+    def test_non_positive_c_wrong_rejected(self):
+        with pytest.raises(ValueError):
+            P.decision_map(0, 5, 10)
+        with pytest.raises(ValueError):
+            P.decision_map(-1, 5, 10)
+
+    def test_tiny_grid_rejected(self):
+        with pytest.raises(ValueError):
+            P.decision_map(50, 5, 10, n_grid=1)
+
+
+class TestDecisionMapMarkers:
+    def test_point_renders_and_is_clipped(self):
+        plain = P.decision_map(*BC_COSTS)
+        with_point = P.decision_map(*BC_COSTS, point=(0.62, 0.99))
+        assert len(with_point.axes[0].get_lines()) > len(plain.axes[0].get_lines())
+        labels = [t.get_text() for t in with_point.axes[0].get_legend().get_texts()]
+        assert any("this cell  p=0.620, q=0.990" in lbl for lbl in labels)
+        out_of_range = P.decision_map(*BC_COSTS, point=(1.5, -0.2))
+        labels = [t.get_text() for t in out_of_range.axes[0].get_legend().get_texts()]
+        assert any("p=1.000, q=0.000" in lbl for lbl in labels)
+
+    def test_population_scatter_groups_by_action(self):
+        pts = [
+            (0.95, 0.99, DecisionAction.AUTO_REPAIR),
+            (0.30, 0.99, DecisionAction.HUMAN_REVIEW),
+            (0.30, 0.03, "ABSTAIN"),            # string form accepted too
+            (0.40, 0.03, DecisionAction.ABSTAIN),
+        ]
+        fig = P.decision_map(*BC_COSTS, points=pts)
+        labels = [t.get_text() for t in fig.axes[0].get_legend().get_texts()]
+        assert any("AUTO_REPAIR cells (1)" in lbl for lbl in labels)
+        assert any("ABSTAIN cells (2)" in lbl for lbl in labels)
+        assert len(fig.axes[0].collections) >= 3
+
+    def test_point_and_points_combine(self):
+        fig = P.decision_map(*BC_COSTS, point=(0.5, 0.5),
+                             points=[(0.1, 0.1, DecisionAction.ABSTAIN)])
+        labels = [t.get_text() for t in fig.axes[0].get_legend().get_texts()]
+        assert any("this cell" in lbl for lbl in labels)
+        assert any("ABSTAIN cells (1)" in lbl for lbl in labels)
+
+    def test_empty_points_is_fine(self):
+        assert isinstance(P.decision_map(*BC_COSTS, points=[]), Figure)

@@ -198,3 +198,178 @@ class TestNoLeakageInUI:
     def test_evaluation_section_is_explicitly_flagged(self, app):
         errors = " ".join(e.value for e in app.error)
         assert "Ground truth is used from here on" in errors
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Step 5: detector knobs, the learned q, and the (p, q) decision map
+# ═══════════════════════════════════════════════════════════════════════════════
+
+Q_LABEL = "q = P(cell genuinely corrupted)"
+
+
+def _count(at: AppTest, action: str) -> int:
+    """Section 7 renders '<n>  (<pct>%)' per action."""
+    return int(_metric_value(at, f"{action} cells").split()[0])
+
+
+def _bundle(**kw):
+    """The same pipeline the app runs, for independent expectations."""
+    from src.pipeline import run_pipeline
+
+    params = dict(n_records=300, seed=42, n_samples=5)
+    params.update(kw)
+    return run_pipeline(params.pop("dataset", "breast_cancer"), **params)
+
+
+class TestDetectorControls:
+    def test_detector_knobs_exist_with_defaults(self, app):
+        assert app.sidebar.slider(key="iqr_k_breast_cancer").value == 3.0
+        assert app.sidebar.checkbox(key="flag_outliers_breast_cancer").value is True
+
+    def test_detector_group_sits_above_the_cost_group(self, app):
+        subheaders = [s.value for s in app.sidebar.subheader]
+        assert "Detector" in subheaders
+        assert subheaders.index("Detector") < subheaders.index(
+            f"Costs ({app_module_cost_units()})"
+        )
+
+    def test_caption_names_the_all_three_actions_configuration(self, app):
+        text = " ".join(c.value for c in app.sidebar.caption)
+        assert "k=1.5" in text and "all three" in text
+
+    def test_smartfactory_defaults_to_outlier_flagging_off(self):
+        at = _run()
+        at.sidebar.selectbox(key="dataset").set_value("smartfactory").run()
+        assert not at.exception, [str(e.value) for e in at.exception]
+        assert at.sidebar.checkbox(key="flag_outliers_smartfactory").value is False
+
+
+def app_module_cost_units() -> str:
+    from src.visualization import plots as P
+
+    return P.COST_UNITS_LABEL
+
+
+class TestTighterFenceMakesAllThreeActionsLive:
+    """docs/cost_semantics.md §4: all three actions occur across a population
+    that contains both real errors and false alarms — breast_cancer at k=1.5."""
+
+    def test_default_fence_has_no_abstentions_but_k_1_5_has_many(self):
+        at = _run()
+        assert _count(at, "ABSTAIN") == 0
+
+        at.sidebar.slider(key="iqr_k_breast_cancer").set_value(1.5).run()
+        assert not at.exception, [str(e.value) for e in at.exception]
+        for action in ("AUTO_REPAIR", "HUMAN_REVIEW", "ABSTAIN"):
+            assert _count(at, action) > 0, action
+
+    def test_outlier_cell_abstains_and_flips_when_review_becomes_free(self):
+        at = _run()
+        at.sidebar.slider(key="iqr_k_breast_cancer").set_value(1.5).run()
+        bundle = _bundle(iqr_k=1.5)
+        outlier = next(j for j in bundle.decision_indices()
+                       if bundle.detection_methods[j] == "iqr_outlier")
+
+        at.selectbox(key="record_breast_cancer").set_value(outlier).run()
+        assert not at.exception, [str(e.value) for e in at.exception]
+        assert _decision(at) == "ABSTAIN"
+        q = bundle.corruption_probs[outlier]
+        assert q < 0.1  # a near-certain false alarm
+        assert float(_metric_value(at, Q_LABEL)) == pytest.approx(q, abs=5e-4)
+
+        # q* = C_human/C_abstain = 0 makes review the live arm instead, so the
+        # SAME cell with the SAME q decides differently.
+        at.sidebar.slider(key="c_human_breast_cancer").set_value(0.0).run()
+        assert not at.exception
+        assert _decision(at) == "HUMAN_REVIEW"
+
+    def test_missing_value_cell_does_not_abstain_at_k_1_5(self):
+        at = _run()
+        at.sidebar.slider(key="iqr_k_breast_cancer").set_value(1.5).run()
+        bundle = _bundle(iqr_k=1.5)
+        missing = next(j for j in bundle.decision_indices()
+                       if bundle.detection_methods[j] == "missing_value")
+        at.selectbox(key="record_breast_cancer").set_value(missing).run()
+        assert _decision(at) != "ABSTAIN"
+        assert bundle.corruption_probs[missing] > 0.9
+
+
+class TestCorruptionProbabilityMetric:
+    def test_q_metric_matches_the_bundle_for_the_selected_record(self):
+        at = _run()
+        bundle = _bundle()
+        first = bundle.decision_indices()[0]
+        shown = float(_metric_value(at, Q_LABEL))
+        assert shown == pytest.approx(bundle.corruption_probs[first], abs=5e-4)
+        assert shown > 0.9  # a missing_value cell: nearly every flag is real
+
+    def test_how_q_was_learned_is_explained(self, app):
+        captions = " ".join(c.value for c in app.caption)
+        assert "detection_method" in captions
+        assert "train split" in captions
+
+    def test_detection_calibration_expander_labels_the_rate_as_learned(self, app):
+        captions = " ".join(c.value for c in app.caption)
+        assert "not a verdict on any individual cell" in captions
+        assert "suspicion score" in captions
+
+    def test_section_5_abstain_metric_is_q_times_c_abstain(self):
+        at = _run()
+        bundle = _bundle()
+        first = bundle.decision_indices()[0]
+        q = bundle.corruption_probs[first]
+        e_abstain = float(_metric_value(at, "E[ABSTAIN]"))
+        assert e_abstain == pytest.approx(q * 10.0, abs=0.01)
+        labels = [m.label for m in at.metric if m.label.startswith("E[ABSTAIN]")]
+        assert any("q × C_abstain" in lbl for lbl in labels), labels
+
+
+class TestDecisionMapInSectionSeven:
+    def test_threshold_caption_is_computed_not_asserted(self, app):
+        """The old 'C_abstain > C_human so ABSTAIN can never win' caption is
+        replaced by the q* framing of docs/cost_semantics.md §4."""
+        captions = " ".join(c.value for c in app.caption)
+        assert "q* = C_human/C_abstain = 0.500" in captions
+        assert "can never be the cheapest action for any p" not in captions
+        assert "All three actions occur across the population" in captions
+
+    def test_both_figures_render_in_section_seven(self, app):
+        # cost curves + decision map + candidate bar + the plots tab figures
+        assert len(app.get("imgs")) >= 4
+
+
+class TestAdultStaysAllAbstain:
+    def test_every_decided_cell_abstains_via_learned_q(self):
+        at = _run()
+        at.sidebar.selectbox(key="dataset").set_value("adult").run()
+        assert not at.exception, [str(e.value) for e in at.exception]
+        assert _decision(at) == "ABSTAIN"
+        assert _count(at, "AUTO_REPAIR") == 0
+        assert _count(at, "HUMAN_REVIEW") == 0
+        assert _count(at, "ABSTAIN") > 0
+        assert _metric_value(at, "ABSTAIN cells").endswith("(100%)")
+        assert float(_metric_value(at, Q_LABEL)) < 0.05
+
+
+class TestGroundTruthContrastOnlyInSectionEight:
+    def test_corruption_label_is_not_rendered_before_section_eight(self, app):
+        """
+        Sections 1-7 may say anything about the LEARNED q (a decision input);
+        only Section 8 may state this cell's 0/1 corruption label.
+        """
+        seen_eval_header = False
+        for el in app.main:
+            text = getattr(el, "value", None)
+            if not isinstance(text, str):
+                continue
+            if text.startswith("8 · Baseline comparison"):
+                seen_eval_header = True
+            if not seen_eval_header:
+                assert "genuinely corrupted?" not in text.lower(), text[:120]
+                assert "ground-truth corruption label" not in text.lower(), text[:120]
+
+    def test_section_eight_contrasts_the_label_with_the_learned_q(self, app):
+        markdown = " ".join(m.value for m in app.markdown)
+        assert "Was this cell **genuinely corrupted**?" in markdown
+        assert "ground-truth corruption label" in markdown
+        assert "used the learned q" in markdown
