@@ -50,3 +50,6 @@ coverage.xml
 # ── Datasets ──────────────────────────────────────────────────────────────────
 # datasets/ is intentionally committed — CSVs are small (~12 MB total) and
 # are required to run the pipeline. They are the REIN benchmark files.
+
+# LLM response cache (Phase 12)
+.cache/

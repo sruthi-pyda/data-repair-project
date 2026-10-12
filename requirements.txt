@@ -13,7 +13,7 @@ pytest>=7.4.0
 streamlit>=1.30.0
 
 # ── Planned (future phases — not yet required to run the current pipeline) ────
-# openai>=1.0.0           # Phase 12: real LLM integration
-# python-dotenv>=1.0.0    # Phase 12: .env loading for API keys
+openai>=1.0.0           # Phase 12: LLM repair (optional; urllib fallback exists)
+python-dotenv>=1.0.0    # Phase 12: .env loading (optional; built-in parser exists)
 # plotly>=5.17.0          # Phase 12: interactive visualisations
 # seaborn>=0.12.0         # Phase 12: additional plot styles
