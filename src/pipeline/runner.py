@@ -23,6 +23,10 @@ DATA LEAKAGE RULES (CLAUDE.md §3)
                                                   column kinds, quartiles, vocab
     Detector.detect()           no
     MockRepairer.repair_batch() no
+    LLMRepairer.repair_batch()  no                mode="real": the outgoing
+                                                  request body is built from
+                                                  dirty data and aggregate
+                                                  profile stats only
     UncertaintyEstimator        no
     CalibrationBuilder.build()  yes (labels)      0/1 "repair is correct" labels
                                                   for p (Phase 6)
@@ -62,6 +66,18 @@ so abstention is cheap exactly where the detector is known to raise false
 alarms (IQR outliers: q ≈ 0) and expensive where every flag is real
 (missing values: q ≈ 1). When the detection calibrator cannot fit, q = 1.0
 for every record, which reproduces the pre-Step-4 decisions exactly.
+
+REPAIR MODE (Phase 12)
+======================
+``run_pipeline(..., mode="mock"|"real")`` selects the repairer and nothing
+else. ``"mock"`` is the historical path, bit-identical to every number
+reported so far. ``"real"`` builds an :class:`LLMRepairer` whose per-cell
+fallback is that same mock repairer, so a missing key, an unreachable
+provider or a malformed response degrades one cell instead of failing the
+run. The bundle records ``repair_mode`` and, in real mode, ``llm_stats``
+(model id, calls, cache hits, fallbacks by reason, 429s, key rotations) —
+a run whose fallback rate is high is a mock run with a label on it, and
+callers are expected to say so.
 
 DETECTOR KNOBS
 ==============
@@ -167,6 +183,7 @@ from src.evaluation.cost_metrics import (
     compare_policies,
 )
 from src.evaluation.repair_metrics import RepairEvaluator, RepairMetrics
+from src.repair.llm_repair import LLMConfig, LLMRepairer
 from src.repair.mock_repair import MockRepairer, RepairResult
 from src.risk.cost_model import CostConfig
 from src.uncertainty.estimator import UncertaintyEstimator, UncertaintyRecord
@@ -174,6 +191,11 @@ from src.uncertainty.estimator import UncertaintyEstimator, UncertaintyRecord
 logger = logging.getLogger(__name__)
 
 DATASETS: Tuple[str, ...] = ("breast_cancer", "smartfactory", "adult")
+
+# Phase 12: which repairer generates the candidates. "mock" is the historical
+# path and is bit-identical to every number reported so far.
+REPAIR_MODES: Tuple[str, ...] = ("mock", "real")
+DEFAULT_REPAIR_MODE: str = "mock"
 
 # ID-like columns whose "repairs" are meaningless; mirrors demo_risk.py.
 SKIP_COLUMNS: Dict[str, List[str]] = {
@@ -194,6 +216,78 @@ DEFAULT_DETECTION_SMOOTHING = 1.0
 def default_flag_outliers(dataset: str) -> bool:
     """Per-dataset default for ``flag_outliers`` (configs/default.yaml)."""
     return dataset not in _NO_OUTLIER_FLAGGING
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Repairer selection (Phase 12)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+def build_repairer(
+    mode: str = DEFAULT_REPAIR_MODE,
+    seed: int = 42,
+    top_k: int = 3,
+    llm_config: Optional[LLMConfig] = None,
+    llm_client: Optional[object] = None,
+):
+    """
+    Return the Phase 4 repairer for ``mode``.
+
+    ``"mock"`` returns exactly ``MockRepairer(seed=seed, top_k=top_k)`` — the
+    same object the pipeline has always built, so a mock run stays
+    bit-identical to every reported number.
+
+    ``"real"`` returns an :class:`LLMRepairer` whose per-cell fallback is that
+    same mock repairer, so an unreachable provider, a missing key or a
+    malformed response degrades cell by cell instead of failing the run. The
+    LLM repairer is a drop-in: identical ``repair`` / ``repair_batch``
+    signatures and identical ``RepairResult`` output, and it has no
+    ground-truth parameter either (CLAUDE.md §3).
+
+    Parameters
+    ----------
+    llm_config : LLMConfig or None
+        ``None`` reads `.env` / ``os.environ`` via ``LLMConfig.from_env()``.
+        Tests always pass one explicitly so nothing reads a real `.env`.
+    llm_client : transport or None
+        Injected transport; ``None`` builds the default one lazily, on the
+        first call. Tests always inject, so no test touches the network.
+
+    Raises
+    ------
+    ValueError
+        For any mode outside :data:`REPAIR_MODES`.
+    """
+    if mode == "mock":
+        return MockRepairer(seed=seed, top_k=top_k)
+    if mode == "real":
+        return LLMRepairer(
+            config=llm_config if llm_config is not None else LLMConfig.from_env(),
+            client=llm_client,
+            fallback=MockRepairer(seed=seed, top_k=top_k),
+            top_k=top_k,
+            seed=seed,
+        )
+    raise ValueError(f"Unknown repair mode '{mode}'. Choose from {REPAIR_MODES}.")
+
+
+def _llm_stats_dict(repairer: LLMRepairer) -> Dict[str, object]:
+    """
+    Serialisable run report for a real-mode repairer.
+
+    Carries the counters plus the model id and pool size so a table, a
+    metadata file or the dashboard can state *which* model produced the
+    repairs and how often it fell back. It never carries a key: only
+    ``LLMConfig.n_api_keys`` and ``api_key_status`` leave this function.
+    """
+    payload: Dict[str, object] = dict(repairer.stats.to_dict(include_rotation=True))
+    payload["model"] = repairer.config.model
+    payload["base_url"] = repairer.config.base_url
+    payload["is_configured"] = repairer.config.is_configured
+    payload["n_api_keys"] = repairer.config.n_api_keys
+    payload["api_key_status"] = repairer.config.api_key_status
+    payload["use_cache"] = repairer.use_cache
+    return payload
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -233,6 +327,18 @@ class PipelineBundle:
 
     ``iqr_k`` and ``flag_outliers`` record the detector settings actually
     used, so an experiment table can label its rows.
+
+    ``repair_mode`` is ``"mock"`` or ``"real"`` (Phase 12) and names which
+    repairer produced ``repair_results``. It is a provenance field: no table,
+    figure or decision may describe repairs without it, because the same
+    pipeline produces very different candidates in the two modes.
+    ``llm_stats`` is ``None`` in mock mode and otherwise the real repairer's
+    run report — counters (calls, cache hits, successes, fallbacks by reason,
+    429s, key rotations) plus the model id, the base URL, the pool *size* and
+    the cache setting. **A fallback count is a result, not a footnote:** a
+    "real" run in which most cells fell back is a mock run wearing a label,
+    and ``llm_stats["fallback_rate"]`` is what says so. No API key, and
+    nothing derived from one, is ever stored here.
 
     ``seed`` and ``split_seed`` record the two independent seeds (see the
     module docstring). ``seed`` is the prediction-side seed: it fixes the
@@ -278,6 +384,10 @@ class PipelineBundle:
 
     # Phase 13 addition (defaulted so older constructors keep working).
     split_seed: int = 42
+
+    # Phase 12 additions (defaulted so older constructors keep working).
+    repair_mode: str = DEFAULT_REPAIR_MODE
+    llm_stats: Optional[Dict[str, object]] = None
 
     @property
     def n_records(self) -> int:
@@ -337,6 +447,9 @@ def run_pipeline(
     flag_outliers: Optional[bool] = None,
     detection_smoothing: float = DEFAULT_DETECTION_SMOOTHING,
     split_seed: Optional[int] = None,
+    mode: str = DEFAULT_REPAIR_MODE,
+    llm_config: Optional[LLMConfig] = None,
+    llm_client: Optional[object] = None,
 ) -> PipelineBundle:
     """
     Run Phases 1–6 (plus detection calibration) for one dataset and return
@@ -371,9 +484,27 @@ def run_pipeline(
         the repeated-split experiment: detections, repairs and raw
         confidences are unchanged, only the learned p and q move. See the
         module docstring.
+    mode : {"mock", "real"}
+        Which repairer generates candidates (Phase 12). ``"mock"`` is the
+        historical path and is bit-identical to every reported number;
+        ``"real"`` calls an OpenAI-compatible provider and falls back to the
+        mock repairer per cell on any failure. Everything downstream is
+        repairer-agnostic, so this changes *what p is calibrated from* and
+        nothing else. The resolved mode is recorded on the bundle.
+    llm_config : LLMConfig or None
+        Real mode only. ``None`` reads `.env` / ``os.environ``. An
+        unconfigured config is not an error: every cell falls back to mock
+        and ``bundle.llm_stats["fallback_rate"]`` is 1.0, which is visible in
+        the predictions CSV and in every table note.
+    llm_client : transport or None
+        Real mode only. Injected transport; tests always pass one so no test
+        reaches the network.
     """
     if dataset not in DATASETS:
         raise ValueError(f"Unknown dataset '{dataset}'. Choose from {DATASETS}.")
+    if mode not in REPAIR_MODES:
+        # Checked before any file is read, so a typo costs nothing.
+        raise ValueError(f"Unknown repair mode '{mode}'. Choose from {REPAIR_MODES}.")
     if n_samples < 1:
         raise ValueError(f"n_samples must be >= 1, got {n_samples}")
     if top_k < 1:
@@ -423,8 +554,12 @@ def run_pipeline(
     detection_note = det_report.limitation
 
     # ── Phases 4–5: repair + uncertainty (no clean_df) ────────────────────
-    repairer = MockRepairer(seed=seed, top_k=top_k)
+    # mode="mock" builds exactly MockRepairer(seed, top_k), as before.
+    repairer = build_repairer(
+        mode, seed=seed, top_k=top_k, llm_config=llm_config, llm_client=llm_client
+    )
     repair_results = repairer.repair_batch(detections, dirty_df, profile)
+    llm_stats = _llm_stats_dict(repairer) if isinstance(repairer, LLMRepairer) else None
     estimator = UncertaintyEstimator(base_seed=seed, n_samples=n_samples)
     unc_records = estimator.estimate_batch(repair_results, dirty_df, profile)
 
@@ -447,10 +582,20 @@ def run_pipeline(
 
     logger.info(
         "run_pipeline '%s': %d/%d detections (iqr_k=%.2f, outliers=%s), "
-        "seed=%d split_seed=%d, calibration=%s, detection calibrator fitted=%s",
+        "mode=%s, seed=%d split_seed=%d, calibration=%s, "
+        "detection calibrator fitted=%s",
         dataset, len(detections), len(all_detections), iqr_k, flag_outliers,
-        seed, split_seed, method, det_calibrator.is_fitted(),
+        mode, seed, split_seed, method, det_calibrator.is_fitted(),
     )
+    if llm_stats is not None:
+        logger.info(
+            "run_pipeline '%s' real mode: model=%s, %d cells, %d via LLM, "
+            "%d fallbacks (%.1f%%), %d rate limits, %d key rotations.",
+            dataset, llm_stats["model"], llm_stats["cells"],
+            llm_stats["successes"], llm_stats["fallbacks"],
+            100.0 * float(llm_stats["fallback_rate"]),
+            llm_stats["rate_limited"], llm_stats["key_rotations"],
+        )
     return PipelineBundle(
         dataset=dataset,
         n_requested=n_records,
@@ -476,6 +621,8 @@ def run_pipeline(
         iqr_k=float(iqr_k),
         flag_outliers=bool(flag_outliers),
         split_seed=split_seed,
+        repair_mode=mode,
+        llm_stats=llm_stats,
     )
 
 

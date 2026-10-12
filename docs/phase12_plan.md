@@ -147,30 +147,48 @@ already does some of this — extend rather than duplicate, and make it return
 - [x] 1.6 Commit. (1514 tests.)
 
 ### Step 2 — wire into the pipeline and CLI
-- [ ] 2.1 `run_pipeline(..., mode="mock")`; `"real"` builds an `LLMRepairer`.
+- [x] 2.1 `run_pipeline(..., mode="mock")`; `"real"` builds an `LLMRepairer`.
       Bundle records `repair_mode` and `llm_stats`.
-- [ ] 2.2 `run_experiment.py --mode real` stops exiting 2; it runs, and every
+- [x] 2.2 `run_experiment.py --mode real` stops exiting 2; it runs, and every
       table gains a "repair mode" column plus a fallback-count note. Still
       exits 2 with a clear message when no key is configured.
-- [ ] 2.3 Dashboard: the "Real LLM" sidebar option works when a key is
+- [x] 2.3 Dashboard: the "Real LLM" sidebar option works when a key is
       present, shows the fallback count, and still says so when it falls back.
-- [ ] 2.4 Tests: mode plumbing with a fake client end-to-end; `--mode real`
+- [x] 2.4 Tests: mode plumbing with a fake client end-to-end; `--mode real`
       without a key exits 2; with a fake key + fake client produces the same
       artifact set as mock.
-- [ ] 2.5 Commit.
+- [x] 2.5 Commit. (1564 tests.)
 
 ### Step 3 — run it for real (needs the user's key)
-- [ ] 3.1 User puts `LLM_API_KEY` / `LLM_BASE_URL` / `LLM_MODEL` in `.env`.
-- [ ] 3.2 Smoke: one dataset, small cap, inspect candidates and fallbacks.
-- [ ] 3.3 Full run; compare against mock on the same cells: repair accuracy,
+- [x] 3.1 User puts `LLM_API_KEY` / `LLM_BASE_URL` / `LLM_MODEL` in `.env`.
+- [x] 3.2 Smoke: one dataset, small cap, inspect candidates and fallbacks.
+- [x] 3.3 Full run; compare against mock on the same cells: repair accuracy,
       calibration quality, realised cost, and **whether self_consistency
       carries signal under a real model** (the open question from §0).
-- [ ] 3.4 Write results into `results/RESULTS.md` and CLAUDE.md. Report
+- [x] 3.4 Write results into `results/RESULTS.md` and CLAUDE.md. Report
       honestly, including if the LLM is *worse* than the mock.
-- [ ] 3.5 Commit.
+- [x] 3.5 Commit.
 
 ---
 
 ## 3. Results
 
-_(filled in at Step 3)_
+Live run: `--dataset breast_cancer --mode real --llm-live`, 392 cells,
+openai/gpt-oss-120b via Groq, 2/392 fallbacks (0.5 %), 1,407 s.
+Artifacts in `results_llm/`.
+
+| metric | mock | real LLM |
+|---|---:|---:|
+| top-1 repair accuracy | 0.6732 | **0.7099** |
+| proposed policy cost | **1,615** | 1,670 |
+| best baseline cost | 1,720 (thr 0.70) | **1,620 (thr 0.80)** |
+| always-auto cost | 5,800 | 5,150 |
+| verdict | proposed WINS | **proposed LOSES by 50** |
+
+**The LLM repairs better and the policy does worse.** Better repairs raise p,
+the policy auto-repairs more (though T3 shows AUTO share *fell* to 0.1155),
+and a fixed 0.80 threshold happens to land better on this distribution. On
+n=392 with a 50-unit gap this is close, but it is a loss and is reported as
+one. Controlled per-error-type comparison on 80 cells: LLM 50 % vs mock 45 %
+on missing values (noise), LLM 92.5 % vs mock **100 %** on out-of-range — the
+LLM is worse on the deterministic cases a rule nails.

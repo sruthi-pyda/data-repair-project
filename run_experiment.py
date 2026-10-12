@@ -8,6 +8,29 @@ number and figure for this project.
     python run_experiment.py --dataset breast_cancer
     python run_experiment.py --all
     python run_experiment.py --quick --all          # CI / smoke, NOT paper-grade
+    python run_experiment.py --all --mode real --llm-live   # Phase 12 repairs
+
+REPAIR MODE (Phase 12)
+======================
+``--mode mock`` (the default) is the historical path. ``--mode real`` runs
+the pipeline with ``src/repair/llm_repair.py`` and needs two things: a usable
+key (``LLM_API_KEY``, or ``LLM_API_KEYS`` for the rotating pool, in a
+gitignored ``.env``) **and** ``--llm-live``. Without a key it exits 2 naming
+the variable and the file; without ``--llm-live`` it exits 2 rather than
+spending roughly 13,314 billed calls because a flag was mistyped. No key is
+ever printed, logged or written to an artifact.
+
+Every table states the mode, the model id and the per-dataset fallback count
+and rate, because a real-mode run in which most cells fell back to the mock
+repairer is a mock run with a label on it. ``--no-llm-cache`` forces fresh
+calls; the cache is on by default, which makes a re-run free and exactly
+reproducible.
+
+**One real limit, stated everywhere it matters:** ``repeated_splits``
+(``src/experiments/aggregate.py``) builds its own ``MockRepairer`` and takes
+no repair mode, so T2 and T4's cost interval describe the *mock* pipeline's
+calibration even in real mode. T1, T3 and the predictions CSV use the real
+repairs.
 
 Before this script existed, every number in the project came from a demo
 script or an ad-hoc ablation, each with its own record cap, its own seed
@@ -86,7 +109,7 @@ import platform
 import subprocess
 import sys
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
@@ -117,6 +140,7 @@ from src.pipeline import (  # noqa: E402
     evaluate_policies,
     run_pipeline,
 )
+from src.repair.llm_repair import LLMConfig  # noqa: E402
 from src.risk.cost_model import CostConfig  # noqa: E402
 from src.visualization import plots  # noqa: E402
 
@@ -140,6 +164,10 @@ QUICK_SPLITS = 3
 BASELINE_THRESHOLD = 0.8
 
 PROPOSED = "calibrated_risk_aware"
+
+# A real-mode run at or above this fallback rate is flagged on every table:
+# at that point most "LLM repairs" are mock repairs wearing a label.
+HIGH_FALLBACK_RATE = 0.20
 ALWAYS_HUMAN = "always_human"
 ALWAYS_ABSTAIN = "always_abstain"
 
@@ -177,6 +205,10 @@ PREDICTION_DECISION_COLUMNS: Tuple[str, ...] = (
     "detection_method",
     "error_type",
     "dirty_value",
+    # Per-cell repair provenance: 'mock', or in real mode 'llm' /
+    # 'llm->mock (<reason>)'. A fallback is visible row by row rather than
+    # only in the aggregate fallback rate.
+    "repair_method",
     "top_candidate",
     "raw_confidence",
     "self_consistency",
@@ -407,10 +439,20 @@ def measure_dataset(
     flag_outliers: Optional[bool],
     base_split_seed: int,
     data_root: str,
+    mode: str = "mock",
+    llm_config: Optional[LLMConfig] = None,
+    llm_client: Optional[object] = None,
 ) -> DatasetRun:
     """
     Run the pipeline once (the representative run) and the repeated-split
     aggregation, then score every policy against ground truth.
+
+    ``mode`` selects the repairer (Phase 12). It applies to the
+    **representative run only**: ``repeated_splits`` always builds a mock
+    repairer, because ``src/experiments/aggregate.py`` does not thread a
+    repair mode. T2 and the cost interval of T4 therefore describe the mock
+    pipeline's calibration even in real mode, and
+    :func:`_repair_mode_notes` says so on every table.
     """
     costs = CostConfig.from_yaml(COSTS_YAML, dataset)
     bundle = run_pipeline(
@@ -421,6 +463,9 @@ def measure_dataset(
         iqr_k=iqr_k,
         flag_outliers=flag_outliers,
         data_root=data_root,
+        mode=mode,
+        llm_config=llm_config,
+        llm_client=llm_client,
     )
     idx = bundle.decision_indices()
     all_decisions = decide_all(bundle, costs)
@@ -497,6 +542,118 @@ def _cost_units_note() -> str:
         "They are not money, not clinical harm, and not supplied by the REIN "
         "benchmark (docs/cost_semantics.md §1)."
     )
+
+
+def _repair_mode(runs: Sequence[DatasetRun]) -> str:
+    """The repair mode actually used, read back off the bundles."""
+    modes = {getattr(r.bundle, "repair_mode", "mock") for r in runs}
+    if len(modes) == 1:
+        return modes.pop()
+    return "mixed (" + ", ".join(sorted(modes)) + ")"
+
+
+def _repair_mode_notes(runs: Sequence[DatasetRun]) -> List[str]:
+    """
+    The provenance block that goes on **every** table.
+
+    In mock mode it is the sentence the tables have always carried. In real
+    mode it names the model and prints the fallback count and rate per
+    dataset, because a "real" run where most cells fell back to the mock
+    repairer is a mock run with a label on it. That is a result, not a
+    footnote, so it is stated wherever the numbers are.
+    """
+    mode = _repair_mode(runs)
+    if mode == "mock":
+        return [
+            "**Repair mode: `mock`.** Repairs are produced by "
+            "`src/repair/mock_repair.py` (difflib similarity + frequency "
+            "weighting + median/quartile imputation + seeded noise). "
+            "**No LLM was called.**",
+        ]
+
+    notes = ["**Repair mode: `real` (Phase 12, `src/repair/llm_repair.py`).**"]
+    high = []
+    for run in runs:
+        stats = getattr(run.bundle, "llm_stats", None) or {}
+        rate = float(stats.get("fallback_rate", 0.0) or 0.0)
+        cells = int(stats.get("cells", 0) or 0)
+        fallbacks = int(stats.get("fallbacks", 0) or 0)
+        reasons = stats.get("fallback_reasons") or {}
+        reason_str = (
+            "; ".join(f"{k} {v}" for k, v in sorted(reasons.items())) if reasons else "none"
+        )
+        notes.append(
+            f"`{run.dataset}`: model `{stats.get('model', NOT_COMPUTED)}` · "
+            f"{cells:,} cells · {int(stats.get('successes', 0) or 0):,} answered by "
+            f"the model · **{fallbacks:,} fell back to the mock repairer "
+            f"({rate:.1%})** · reasons: {reason_str} · "
+            f"{int(stats.get('cache_hits', 0) or 0):,} cache hits · "
+            f"{int(stats.get('rate_limited', 0) or 0):,} rate limits · "
+            f"{int(stats.get('key_rotations', 0) or 0):,} key rotations."
+        )
+        if rate >= HIGH_FALLBACK_RATE:
+            high.append(f"{run.dataset} {rate:.1%}")
+    if high:
+        notes.append(
+            f"⚠ **High fallback rate ({'; '.join(high)}).** Those cells were "
+            f"repaired by `src/repair/mock_repair.py`, not by the model, so "
+            f"this table is a blend and must not be read as an LLM result. "
+            f"Per-cell provenance is in the `repair_method` column of "
+            f"`predictions/<dataset>.csv` (`llm` vs `llm->mock (<reason>)`)."
+        )
+    notes.append(
+        "**The intervals in T2 and the cost interval in T4 come from the "
+        "mock repairer even in real mode**: `repeated_splits` "
+        "(`src/experiments/aggregate.py`) builds its own `MockRepairer` and "
+        "takes no repair mode, so those intervals describe the calibration "
+        "of the mock pipeline. T1, T3 and the predictions CSV use the real "
+        "repairs. Mixing them would be the dishonest reading."
+    )
+    return notes
+
+
+def _predictions_mode_comment(bundle: PipelineBundle) -> str:
+    """The repair-mode clause of a predictions file's header comment."""
+    stats = getattr(bundle, "llm_stats", None) or {}
+    if getattr(bundle, "repair_mode", "mock") != "real":
+        return "mode=mock (src/repair/mock_repair.py — no LLM call)."
+    return (
+        f"mode=real (src/repair/llm_repair.py), model={stats.get('model', '?')}, "
+        f"{int(stats.get('successes', 0) or 0):,} cells answered by the model and "
+        f"{int(stats.get('fallbacks', 0) or 0):,} fell back to the mock repairer "
+        f"({float(stats.get('fallback_rate', 0.0) or 0.0):.1%}); the "
+        f"repair_method column says which, per cell."
+    )
+
+
+def _with_repair_mode(
+    table: Tuple[List[str], List[List[Any]]], runs: Sequence[DatasetRun]
+) -> Tuple[List[str], List[List[Any]]]:
+    """
+    Append the provenance columns to a table CSV.
+
+    Every table CSV's first column is the dataset name (the md tables carry
+    the same information as a note), so the three columns can be bolted on
+    without touching each writer: ``repair_mode``, ``llm_model`` and
+    ``llm_fallback_rate``. They are blank in mock mode, which keeps a mock
+    run's CSV diffable against the historical ones apart from the literal
+    ``mock`` label.
+    """
+    header, rows = table
+    info: Dict[str, Tuple[Any, Any, Any]] = {}
+    for run in runs:
+        stats = getattr(run.bundle, "llm_stats", None) or {}
+        mode = getattr(run.bundle, "repair_mode", "mock")
+        info[run.dataset] = (
+            mode,
+            stats.get("model", "") if mode == "real" else "",
+            _f(float(stats.get("fallback_rate", 0.0) or 0.0), 6) if mode == "real" else "",
+        )
+    out_header = list(header) + ["repair_mode", "llm_model", "llm_fallback_rate"]
+    out_rows = [
+        list(row) + list(info.get(str(row[0]), ("mock", "", ""))) for row in rows
+    ]
+    return out_header, out_rows
 
 
 def _false_negative_note(runs: Sequence[DatasetRun]) -> str:
@@ -629,10 +786,8 @@ def t1_document(runs: Sequence[DatasetRun], seed: int, n_records: int, quick: bo
         "clean anywhere in the dataset, including ID-like columns, so "
         "`false negatives = genuine corruptions − detected genuine`.",
         _false_negative_note(runs),
-        "Repairs are produced by `src/repair/mock_repair.py` (difflib "
-        "similarity + frequency weighting + median/quartile imputation + "
-        "seeded noise). **No LLM was called.** Phase 12 is not implemented.",
     ]
+    notes += _repair_mode_notes(runs)
     notes += _fallback_notes(runs)
     return _table_document(
         "T1 — Repair quality",
@@ -725,6 +880,7 @@ def t2_document(runs: Sequence[DatasetRun], splits: int, seed: int, quick: bool)
                 f"⚠ **{run.dataset}**: every cell is `—` because "
                 f"`repeated_splits` raised — {run.repeated_error}."
             )
+    notes += _repair_mode_notes(runs)
     notes += _fallback_notes(runs)
     return _table_document(
         "T2 — Calibration: raw vs logistic vs isotonic vs multivariate",
@@ -831,6 +987,7 @@ def t3_document(runs: Sequence[DatasetRun], seed: int, n_records: int, quick: bo
     adult = _adult_framing_note(runs)
     if adult:
         notes.append(adult)
+    notes += _repair_mode_notes(runs)
     notes += _fallback_notes(runs)
     return _table_document(
         "T3 — Risk-aware performance of the proposed policy",
@@ -975,6 +1132,7 @@ def t4_document(runs: Sequence[DatasetRun], splits: int, seed: int, n_records: i
     adult = _adult_framing_note(runs)
     if adult:
         notes.append(adult)
+    notes += _repair_mode_notes(runs)
     notes += _fallback_notes(runs)
     return _table_document(
         "T4 — Policy comparison",
@@ -1054,6 +1212,7 @@ def write_predictions(run: DatasetRun, path: Path) -> int:
             det.detection_method,
             rec.error_type,
             rec.dirty_value,
+            rec.repair_method,
             rec.top_candidate,
             _f(rec.raw_confidence, 6),
             _f(rec.self_consistency, 6),
@@ -1073,7 +1232,7 @@ def write_predictions(run: DatasetRun, path: Path) -> int:
         f"Generated by run_experiment.py (Phase 13) with seed={bundle.seed}, "
         f"split_seed={getattr(bundle, 'split_seed', bundle.seed)}, "
         f"iqr_k={bundle.iqr_k:g}, flag_outliers={bundle.flag_outliers}, "
-        f"mode=mock (src/repair/mock_repair.py — no LLM call).",
+        f"{_predictions_mode_comment(bundle)}",
         "EVALUATION-ONLY COLUMNS (ground truth, read only AFTER every decision "
         "existed, never an input to detection, repair, uncertainty or the "
         "policy), grouped at the end of the header: "
@@ -1188,6 +1347,28 @@ def git_commit() -> Optional[str]:
     return commit if out.returncode == 0 and commit else None
 
 
+def _metadata_llm_model(runs: Sequence[DatasetRun]) -> Optional[str]:
+    """The model id that produced the repairs, or None in mock mode."""
+    models = {
+        str((getattr(r.bundle, "llm_stats", None) or {}).get("model"))
+        for r in runs
+        if getattr(r.bundle, "repair_mode", "mock") == "real"
+    }
+    if not models:
+        return None
+    return models.pop() if len(models) == 1 else ", ".join(sorted(models))
+
+
+def _metadata_repairer(runs: Sequence[DatasetRun]) -> str:
+    """One line naming the repairer that produced the representative run."""
+    if _repair_mode(runs) == "mock":
+        return "src/repair/mock_repair.py (mock; no LLM call)"
+    return (
+        f"src/repair/llm_repair.py (real; model={_metadata_llm_model(runs)}; "
+        f"per-cell fallback to src/repair/mock_repair.py)"
+    )
+
+
 def _package_version(name: str) -> Optional[str]:
     try:
         module = __import__(name)
@@ -1231,6 +1412,8 @@ def build_metadata(
             "top1_repair_correct": int(run.top1_correct),
             "iqr_k": float(b.iqr_k),
             "flag_outliers_resolved": bool(b.flag_outliers),
+            "repair_mode": getattr(b, "repair_mode", "mock"),
+            "llm_stats": getattr(b, "llm_stats", None),
             "p_calibration_method": b.calibration_method,
             "p_calibration_fallback": bool(b.calibration_note),
             "q_calibrator_fitted": bool(
@@ -1259,6 +1442,14 @@ def build_metadata(
             "script": "run_experiment.py",
             "phase": 13,
             "mode": args.mode,
+            # Read back off the bundles rather than off the flags: in real mode
+            # the two can only agree, but the bundle is what actually ran.
+            "repair_mode": _repair_mode(runs),
+            "llm_model": _metadata_llm_model(runs),
+            "llm_cache": bool(getattr(args, "llm_cache", True)),
+            "llm_stats": {
+                r.dataset: (getattr(r.bundle, "llm_stats", None)) for r in runs
+            },
             "datasets": [r.dataset for r in runs],
             "seed": int(args.seed),
             "split_seed_of_representative_run": int(args.seed),
@@ -1275,7 +1466,12 @@ def build_metadata(
             "threshold_sweep": [float(t) for t in DEFAULT_THRESHOLDS],
             "costs_config": str(COSTS_YAML).replace("\\", "/"),
             "data_root": str(args.data_root).replace("\\", "/"),
-            "repairer": "src/repair/mock_repair.py (mock; no LLM call)",
+            "repairer": _metadata_repairer(runs),
+            "interval_repairer": (
+                "src/repair/mock_repair.py (repeated_splits always builds a "
+                "MockRepairer; T2 and T4's cost interval are mock-based even "
+                "in real mode)"
+            ),
             "git_commit": git_commit(),
             "versions": {
                 "python": platform.python_version(),
@@ -1390,11 +1586,33 @@ def honest_reading(runs: Sequence[DatasetRun], splits: int, quick: bool) -> List
         )
     for mark in _fallback_notes(runs):
         lines.append(f"- Fallback: {mark}")
-    lines.append(
-        "- Every repair above came from the mock repairer, not an LLM "
-        "(Phase 12 is not implemented), so these numbers bound the decision "
-        "layer, not an LLM's repair quality."
-    )
+    if _repair_mode(runs) == "mock":
+        lines.append(
+            "- Every repair above came from the mock repairer, not an LLM "
+            "(--mode mock), so these numbers bound the decision layer, not "
+            "an LLM's repair quality."
+        )
+    else:
+        for run in runs:
+            stats = getattr(run.bundle, "llm_stats", None) or {}
+            rate = float(stats.get("fallback_rate", 0.0) or 0.0)
+            verdict = (
+                "most cells are real LLM repairs"
+                if rate < HIGH_FALLBACK_RATE
+                else "a large share of these 'LLM' repairs are mock repairs"
+            )
+            lines.append(
+                f"- {run.dataset}: real mode, model "
+                f"{stats.get('model', NOT_COMPUTED)}, "
+                f"{int(stats.get('fallbacks', 0) or 0):,} of "
+                f"{int(stats.get('cells', 0) or 0):,} cells fell back to the "
+                f"mock repairer ({rate:.1%}) — {verdict}."
+            )
+        lines.append(
+            "- T2 and T4's cost interval are still mock-based: "
+            "repeated_splits takes no repair mode. Only T1, T3 and the "
+            "predictions CSV reflect the real model."
+        )
     if quick:
         lines.append(
             f"- This was a --quick run ({QUICK_N_RECORDS}-record cap, "
@@ -1434,7 +1652,24 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--mode", choices=("mock", "real"), default="mock",
-        help="'mock' uses src/repair/mock_repair.py; 'real' requires Phase 12",
+        help=(
+            "'mock' uses src/repair/mock_repair.py; 'real' calls the Phase 12 "
+            "LLM repairer and needs a key plus --llm-live"
+        ),
+    )
+    parser.add_argument(
+        "--llm-live", action="store_true",
+        help=(
+            "confirm that --mode real may send billed API calls. Without it "
+            "--mode real refuses rather than spending quota by accident"
+        ),
+    )
+    parser.add_argument(
+        "--llm-cache", action=argparse.BooleanOptionalAction, default=True,
+        help=(
+            "reuse cached model responses (--no-llm-cache forces fresh calls). "
+            "The cache makes a real-mode re-run free and reproducible"
+        ),
     )
     parser.add_argument(
         "--n-records", type=int, default=0,
@@ -1469,15 +1704,56 @@ def resolve_flag_outliers(choice: str) -> Optional[bool]:
     return {"auto": None, "on": True, "off": False}[choice]
 
 
-REAL_MODE_MESSAGE = (
-    "run_experiment.py: --mode real is not implemented.\n"
-    "Real LLM repair is Phase 12 (CLAUDE.md section 6): "
-    "src/repair/llm_repair.py is an empty stub and no API client exists yet, "
-    "so there is no real model call to run. src/repair/prompts.py holds the "
-    "prompt scaffolding only.\n"
+# The one honest caveat that belongs in every real-mode refusal: the
+# interval machinery has no repair mode, so T2 and T4's cost interval stay
+# mock-based however the representative run is produced.
+_INTERVAL_CAVEAT = (
+    "Note: repeated-split intervals (T2, and T4's cost interval) are NOT "
+    "implemented for real mode — src/experiments/aggregate.py always builds "
+    "a MockRepairer and takes no repair mode. T1, T3 and the predictions CSV "
+    "would use the real repairs; those intervals would not."
+)
+
+# No usable key. Names the file and the variable; never a key value.
+REAL_MODE_NO_KEY_MESSAGE = (
+    "run_experiment.py: --mode real needs an API key and none is configured.\n"
+    "Phase 12 real-LLM repair (src/repair/llm_repair.py) is implemented, but "
+    "no usable key was found, so every cell would fall back to the mock "
+    "repairer and the run would be a mock run with a misleading label.\n"
+    "Fix: put LLM_API_KEY=<your key> in .env in the repository root (or set "
+    "LLM_API_KEYS=<key1,key2,...> for the rotating pool, and LLM_BASE_URL / "
+    "LLM_MODEL for a non-OpenAI provider). .env is gitignored; this script "
+    "never prints, logs or stores a key.\n"
+    f"{_INTERVAL_CAVEAT}\n"
     "Re-run with --mode mock (the default), which uses "
     "src/repair/mock_repair.py."
 )
+
+# Key present but the run was not confirmed. A full real run is ~13,314
+# billed calls (392 + 7,093 + 5,829 cells), so it is never implicit.
+REAL_MODE_NEEDS_CONFIRMATION_MESSAGE = (
+    "run_experiment.py: --mode real also needs --llm-live.\n"
+    "Phase 12 real-LLM repair (src/repair/llm_repair.py) is implemented and a "
+    "usable key is configured, but a full real-mode run is about 13,314 billed "
+    "model calls (breast_cancer 392 + smartfactory 7,093 + adult 5,829), so "
+    "this runner never sends them on --mode real alone.\n"
+    "Re-run with --mode real --llm-live to confirm, optionally with --quick "
+    "or --n-records to bound the spend, and --no-llm-cache to ignore cached "
+    "responses.\n"
+    f"{_INTERVAL_CAVEAT}\n"
+    "Re-run with --mode mock (the default) for the mock pipeline."
+)
+
+
+def resolve_llm_config(dotenv_path: str = ".env") -> LLMConfig:
+    """
+    Read the LLM configuration from `.env` plus the process environment.
+
+    A function, not an inline call, so a test can replace it with an explicit
+    :class:`LLMConfig` and never read the user's real `.env`. The returned
+    object redacts its key in ``repr``, ``str`` and ``to_dict``.
+    """
+    return LLMConfig.from_env(dotenv_path)
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
@@ -1485,9 +1761,19 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
+    llm_config: Optional[LLMConfig] = None
     if args.mode == "real":
-        print(REAL_MODE_MESSAGE, file=sys.stderr)
-        return 2
+        # Refuse before anything is written, so a refused run leaves no
+        # half-built artifact set behind.
+        llm_config = resolve_llm_config()
+        if not llm_config.is_configured:
+            print(REAL_MODE_NO_KEY_MESSAGE, file=sys.stderr)
+            return 2
+        if not args.llm_live:
+            print(REAL_MODE_NEEDS_CONFIRMATION_MESSAGE, file=sys.stderr)
+            return 2
+        if not args.llm_cache:
+            llm_config = replace(llm_config, use_cache=False)
 
     datasets = list(DATASET_CHOICES) if args.all else [args.dataset]
     n_records = QUICK_N_RECORDS if args.quick else args.n_records
@@ -1509,6 +1795,13 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         f"splits={splits}  n_records={n_records or 'all'}  "
         f"iqr_k={args.iqr_k:g}  flag_outliers={args.flag_outliers}"
     )
+    if llm_config is not None:
+        # Never the key: only the model, the pool size and the cache setting.
+        print(
+            f"repairer  real (src/repair/llm_repair.py)  "
+            f"model={llm_config.model}  base_url={llm_config.base_url}  "
+            f"keys={llm_config.n_api_keys}  cache={llm_config.use_cache}"
+        )
     print(f"output  {out.as_posix()}")
     print()
 
@@ -1524,6 +1817,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             flag_outliers=resolve_flag_outliers(args.flag_outliers),
             base_split_seed=args.base_split_seed,
             data_root=args.data_root,
+            mode=args.mode,
+            llm_config=llm_config,
         )
         if run.repeated_error:
             print(f"      repeated_splits unavailable: {run.repeated_error}", file=sys.stderr)
@@ -1554,10 +1849,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         "t4_policy_comparison": t4_document(runs, splits, args.seed, n_records, args.quick),
     }
     csvs = {
-        "t1_repair_quality": t1_csv(runs),
-        "t2_calibration": t2_csv(runs, splits),
-        "t3_risk_aware": t3_csv(runs),
-        "t4_policy_comparison": t4_csv(runs, splits),
+        "t1_repair_quality": _with_repair_mode(t1_csv(runs), runs),
+        "t2_calibration": _with_repair_mode(t2_csv(runs, splits), runs),
+        "t3_risk_aware": _with_repair_mode(t3_csv(runs), runs),
+        "t4_policy_comparison": _with_repair_mode(t4_csv(runs, splits), runs),
     }
     for stem in TABLE_STEMS:
         _write_text(tables_dir / f"{stem}.md", documents[stem])

@@ -12,9 +12,28 @@ Run with:
 
     streamlit run app.py
 
-Works fully offline in mock mode; no API key is needed. "Real LLM" mode is
-listed in the sidebar but Phase 12 is not implemented yet, so it falls back
-to mock and says so.
+Works fully offline in mock mode; no API key is needed.
+
+REAL LLM MODE (Phase 12)
+------------------------
+"Real LLM" in the sidebar switches the pipeline to
+``src/repair/llm_repair.py``. It needs two things, and says which one is
+missing:
+
+1. a usable key — ``LLM_API_KEY`` (or ``LLM_API_KEYS`` for the rotating
+   pool) in a gitignored ``.env``; and
+2. the **"Send real API calls"** box ticked.
+
+The second gate is deliberate. Dragging a radio button must not spend API
+quota, and a dashboard rerun re-runs the pipeline: without an explicit arm,
+every slider nudge could become hundreds of billed calls. Unarmed, the app
+falls back to mock repair, says so, and makes no API call. When armed,
+Sections 3 and 4 name the model and print the fallback count and rate,
+because a real-mode run in which most cells fell back is a mock run with a
+label on it.
+
+No API key is read into the page, a cache key, a log line or a figure; only
+the model id, the pool size and the counters are displayed.
 
 LAYOUT
 ------
@@ -51,7 +70,7 @@ Two detection-side quantities must not be confused:
 from __future__ import annotations
 
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 import pandas as pd
 import streamlit as st
@@ -66,6 +85,7 @@ from src.pipeline import (
     evaluate_policies,
     run_pipeline,
 )
+from src.repair.llm_repair import LLMConfig
 from src.risk.cost_model import CostConfig
 from src.visualization import plots as P
 
@@ -105,13 +125,56 @@ ACTION_STYLE = {
 
 @st.cache_resource(show_spinner="Running detection → repair → uncertainty → calibration …")
 def load_bundle(dataset: str, n_records: int, seed: int, n_samples: int,
-                iqr_k: float, flag_outliers: bool) -> PipelineBundle:
-    """``iqr_k`` and ``flag_outliers`` are part of the cache key: changing a
-    detector knob re-runs detection, so the cached bundle can never be stale
-    with respect to the sidebar."""
+                iqr_k: float, flag_outliers: bool,
+                repair_mode: str = "mock") -> PipelineBundle:
+    """``iqr_k``, ``flag_outliers`` and ``repair_mode`` are part of the cache
+    key: changing a detector knob re-runs detection and switching the repairer
+    re-runs the repairs, so the cached bundle can never be stale with respect
+    to the sidebar. Only the *mode string* is in the key — never a config
+    object, and so never a key."""
     return run_pipeline(
         dataset, n_records=n_records, seed=seed, n_samples=n_samples,
-        iqr_k=iqr_k, flag_outliers=flag_outliers,
+        iqr_k=iqr_k, flag_outliers=flag_outliers, mode=repair_mode,
+    )
+
+
+def llm_status() -> dict:
+    """
+    What the sidebar may show about the LLM configuration.
+
+    Reads `.env` / ``os.environ`` through ``LLMConfig.from_env`` and returns
+    only the model id, the pool size and whether a usable key exists. The key
+    itself never leaves this function.
+    """
+    config = LLMConfig.from_env()
+    return {
+        "configured": config.is_configured,
+        "model": config.model,
+        "n_keys": config.n_api_keys,
+        "base_url": config.base_url,
+    }
+
+
+def llm_run_note(b: PipelineBundle) -> Optional[str]:
+    """
+    One line of real-mode provenance, or ``None`` in mock mode.
+
+    States the model, how many cells the model actually answered, and how
+    many fell back to the mock repairer — the number that decides whether
+    anything on the page is an LLM result at all.
+    """
+    if getattr(b, "repair_mode", "mock") != "real":
+        return None
+    stats = getattr(b, "llm_stats", None) or {}
+    rate = float(stats.get("fallback_rate", 0.0) or 0.0)
+    return (
+        f"**Real LLM mode** · model `{stats.get('model', '?')}` · "
+        f"{int(stats.get('successes', 0) or 0):,} of "
+        f"{int(stats.get('cells', 0) or 0):,} cells answered by the model · "
+        f"**{int(stats.get('fallbacks', 0) or 0):,} fell back to mock repair "
+        f"({rate:.1%})** · {int(stats.get('cache_hits', 0) or 0):,} cache hits "
+        f"· {int(stats.get('rate_limited', 0) or 0):,} rate limits · "
+        f"{int(stats.get('key_rotations', 0) or 0):,} key rotations."
     )
 
 
@@ -142,11 +205,42 @@ def sidebar() -> dict:
     dataset = st.sidebar.selectbox("Dataset", DATASETS, index=0, key="dataset")
 
     mode = st.sidebar.radio("Repair mode", ["Mock (offline)", "Real LLM"], index=0, key="mode")
+    repair_mode = "mock"
     if mode == "Real LLM":
-        st.sidebar.warning(
-            "Phase 12 (real LLM client) is not implemented yet — falling back "
-            "to mock repair. No API call is made."
-        )
+        status = llm_status()
+        if not status["configured"]:
+            st.sidebar.warning(
+                "Phase 12 real-LLM repair (`src/repair/llm_repair.py`) is "
+                "implemented, but no usable API key is configured — falling "
+                "back to mock repair. No API call is made.\n\n"
+                "Put `LLM_API_KEY=<your key>` in `.env` in the repository "
+                "root (or `LLM_API_KEYS=<key1,key2,…>` for the rotating pool, "
+                "plus `LLM_BASE_URL` / `LLM_MODEL` for a non-OpenAI "
+                "provider). `.env` is gitignored and this app never prints, "
+                "logs or caches a key."
+            )
+        elif st.sidebar.checkbox(
+            "Send real API calls (spends quota)", value=False, key="llm_live",
+            help=(
+                "Off by default on purpose: every rerun of this page re-runs "
+                "the pipeline, so one slider nudge could otherwise become "
+                "hundreds of billed model calls."
+            ),
+        ):
+            repair_mode = "real"
+            st.sidebar.success(
+                f"Real LLM repair armed · model `{status['model']}` · "
+                f"{status['n_keys']} key(s) in the rotation pool. Cells that "
+                f"fail fall back to mock repair per cell; the count is shown "
+                f"in Sections 3 and 4."
+            )
+        else:
+            st.sidebar.warning(
+                f"Phase 12 real-LLM repair is available (model "
+                f"`{status['model']}`) but **not armed** — falling back to "
+                f"mock repair. No API call is made. Tick *Send real API "
+                f"calls* to use the model."
+            )
 
     st.sidebar.subheader("Detector")
     iqr_k = st.sidebar.slider(
@@ -203,7 +297,8 @@ def sidebar() -> dict:
     seed = st.sidebar.number_input("Random seed", 0, 10_000, 42, 1, key="seed")
 
     return dict(
-        dataset=dataset, mode=mode, c_wrong=c_wrong, c_human=c_human,
+        dataset=dataset, mode=mode, repair_mode=repair_mode,
+        c_wrong=c_wrong, c_human=c_human,
         c_abstain=c_abstain, threshold=threshold, n_records=int(n_records),
         n_samples=int(n_samples), seed=int(seed), iqr_k=float(iqr_k),
         flag_outliers=bool(flag_outliers),
@@ -276,7 +371,14 @@ def section_record(b: PipelineBundle) -> int:
 def section_candidates(b: PipelineBundle, i: int) -> None:
     st.header("3 · Repair candidates")
     rr = b.repair_results[i]
-    st.caption(f"Repair method: `{rr.repair_method}` (mock repairer — not an LLM)")
+    note = llm_run_note(b)
+    if note is None:
+        st.caption(f"Repair method: `{rr.repair_method}` (mock repairer — not an LLM)")
+    else:
+        # `repair_method` is 'llm' or 'llm->mock (<reason>)', so this cell's
+        # own provenance is visible beside the run-level counters.
+        st.caption(f"Repair method for this cell: `{rr.repair_method}`")
+        st.info(note)
     table = pd.DataFrame(
         [{"rank": k + 1, "candidate": str(c.value), "probability": c.probability}
          for k, c in enumerate(rr.candidates)]
@@ -376,6 +478,13 @@ def section_uncertainty(b: PipelineBundle, i: int) -> None:
         "If the calibrator cannot fit, q = 1.0 everywhere, which reproduces "
         "the pre-calibration policy exactly."
     )
+    note = llm_run_note(b)
+    if note is not None:
+        st.caption(
+            note + " A high fallback rate means most of the probabilities "
+            "above are calibrated from **mock** repairs, not from the model — "
+            "read it before reading anything else on this page."
+        )
     if b.calibration_note:
         st.info(b.calibration_note)
     if b.detection_note:
@@ -615,12 +724,13 @@ def main() -> None:
     st.title("Risk-Aware LLM-Assisted Data Repair")
     st.caption(
         "Calibrated probability × explicit costs → repair / review / abstain. "
-        "Mock repair mode; all costs are experimental units."
+        "Mock repair by default (real LLM repair is opt-in in the sidebar); "
+        "all costs are experimental units."
     )
 
     cfg = sidebar()
     b = load_bundle(cfg["dataset"], cfg["n_records"], cfg["seed"], cfg["n_samples"],
-                    cfg["iqr_k"], cfg["flag_outliers"])
+                    cfg["iqr_k"], cfg["flag_outliers"], cfg["repair_mode"])
     costs = make_costs(cfg["dataset"], cfg["c_wrong"], cfg["c_human"], cfg["c_abstain"])
     decisions = decide_all(b, costs)
 

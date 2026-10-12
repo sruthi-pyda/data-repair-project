@@ -1,0 +1,158 @@
+{
+  "deterministic": {
+    "base_split_seed": 1000,
+    "baseline_threshold": 0.8,
+    "costs_config": "configs/costs.yaml",
+    "data_root": "datasets",
+    "datasets": [
+      "breast_cancer"
+    ],
+    "figure_skips": [],
+    "figures_written": true,
+    "flag_outliers": "auto",
+    "git_commit": "682bf91d190ba20a44f6c4bb1538edd9489abee6",
+    "interval_repairer": "src/repair/mock_repair.py (repeated_splits always builds a MockRepairer; T2 and T4's cost interval are mock-based even in real mode)",
+    "iqr_k": 3.0,
+    "llm_cache": true,
+    "llm_model": "openai/gpt-oss-120b",
+    "llm_stats": {
+      "breast_cancer": {
+        "api_key_status": "<set>",
+        "base_url": "https://api.groq.com/openai/v1",
+        "cache_hits": 84,
+        "cells": 392,
+        "fallback_rate": 0.0051,
+        "fallback_reasons": {
+          "malformed_response": 2
+        },
+        "fallbacks": 2,
+        "is_configured": true,
+        "key_rotations": 1,
+        "llm_calls": 308,
+        "model": "openai/gpt-oss-120b",
+        "n_api_keys": 5,
+        "rate_limited": 1,
+        "retries": 0,
+        "successes": 390,
+        "transport_attempts": 309,
+        "use_cache": true
+      }
+    },
+    "mode": "real",
+    "n_records": 0,
+    "n_splits": 5,
+    "paper_grade": true,
+    "per_dataset": {
+      "breast_cancer": {
+        "costs": {
+          "c_human_review": 5.0,
+          "c_leave_error": 10.0,
+          "c_wrong_repair": 50.0,
+          "units": "experimental penalty units"
+        },
+        "figures": [
+          "breast_cancer_reliability.png",
+          "breast_cancer_confidence.png",
+          "breast_cancer_cost_comparison.png",
+          "breast_cancer_action_distribution.png",
+          "breast_cancer_threshold_sweep.png",
+          "breast_cancer_decision_map.png"
+        ],
+        "flag_outliers_resolved": true,
+        "iqr_k": 3.0,
+        "llm_stats": {
+          "api_key_status": "<set>",
+          "base_url": "https://api.groq.com/openai/v1",
+          "cache_hits": 84,
+          "cells": 392,
+          "fallback_rate": 0.0051,
+          "fallback_reasons": {
+            "malformed_response": 2
+          },
+          "fallbacks": 2,
+          "is_configured": true,
+          "key_rotations": 1,
+          "llm_calls": 308,
+          "model": "openai/gpt-oss-120b",
+          "n_api_keys": 5,
+          "rate_limited": 1,
+          "retries": 0,
+          "successes": 390,
+          "transport_attempts": 309,
+          "use_cache": true
+        },
+        "n_columns_dirty": 12,
+        "n_decided_cells": 355,
+        "n_detected_genuine": 355,
+        "n_detections_total": 392,
+        "n_false_negatives": 276,
+        "n_genuine_corruptions_full_dataset": 631,
+        "n_prediction_rows": 355,
+        "n_records_carried": 392,
+        "n_rows_dirty": 699,
+        "p_calibration_fallback": false,
+        "p_calibration_method": "multivariate",
+        "q_calibrator_fitted": true,
+        "repair_mode": "real",
+        "repeated_splits": {
+          "available": true,
+          "error": null,
+          "n_fitted": {
+            "isotonic": 5,
+            "logistic": 5,
+            "multivariate": 5,
+            "raw": 5
+          },
+          "n_splits": 5,
+          "split_seeds": [
+            1000,
+            1001,
+            1002,
+            1003,
+            1004
+          ]
+        },
+        "top1_repair_correct": 252
+      }
+    },
+    "phase": 13,
+    "quick": false,
+    "repair_mode": "real",
+    "repairer": "src/repair/llm_repair.py (real; model=openai/gpt-oss-120b; per-cell fallback to src/repair/mock_repair.py)",
+    "script": "run_experiment.py",
+    "seed": 42,
+    "split_seed_of_representative_run": 42,
+    "threshold_sweep": [
+      0.5,
+      0.6,
+      0.7,
+      0.8,
+      0.9
+    ],
+    "versions": {
+      "matplotlib": "3.10.7",
+      "numpy": "2.3.0",
+      "pandas": "2.3.0",
+      "platform": "Windows-11-10.0.26200-SP0",
+      "python": "3.13.4",
+      "sklearn": "1.7.0"
+    }
+  },
+  "non_deterministic": {
+    "_why": "The clock, the elapsed time and the invocation paths differ between two runs of the same command by design. Everything under 'deterministic' must be byte-identical.",
+    "argv": [
+      "--dataset",
+      "breast_cancer",
+      "--mode",
+      "real",
+      "--llm-live",
+      "--splits",
+      "5",
+      "--output-dir",
+      "results_llm"
+    ],
+    "output_dir": "results_llm",
+    "utc_timestamp": "2026-10-12T15:03:46.020805+00:00",
+    "wall_time_seconds": 1407.298
+  }
+}

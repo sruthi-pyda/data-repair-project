@@ -1,0 +1,10 @@
+dataset,policy,total_realized_cost,mean_cost_per_record,cost_mean,cost_lo,cost_hi,cost_std,cost_n,n_splits,n_auto,n_human,n_abstain,n_wrong_auto,wrong_auto_rate,repair_mode,llm_model,llm_fallback_rate
+breast_cancer,calibrated_risk_aware,1670.000000,4.704225,1621.000000,1617.000000,1626.000000,5.477226,5,5,41,314,0,2,0.048780,real,openai/gpt-oss-120b,0.005100
+breast_cancer,always_auto,5150.000000,14.507042,5800.000000,5800.000000,5800.000000,0.000000,5,5,355,0,0,103,0.290141,real,openai/gpt-oss-120b,0.005100
+breast_cancer,always_human,1775.000000,5.000000,,,,,,5,0,355,0,0,0.000000,real,openai/gpt-oss-120b,0.005100
+breast_cancer,always_abstain,3550.000000,10.000000,,,,,,5,0,0,355,0,0.000000,real,openai/gpt-oss-120b,0.005100
+breast_cancer,confidence_threshold_0.50,4675.000000,13.169014,,,,,,5,340,15,0,92,0.270588,real,openai/gpt-oss-120b,0.005100
+breast_cancer,confidence_threshold_0.60,2825.000000,7.957746,,,,,,5,260,95,0,47,0.180769,real,openai/gpt-oss-120b,0.005100
+breast_cancer,confidence_threshold_0.70,1700.000000,4.788732,,,,,,5,175,180,0,16,0.091429,real,openai/gpt-oss-120b,0.005100
+breast_cancer,confidence_threshold_0.80,1620.000000,4.563380,1770.000000,1770.000000,1770.000000,0.000000,5,5,51,304,0,2,0.039216,real,openai/gpt-oss-120b,0.005100
+breast_cancer,confidence_threshold_0.90,1775.000000,5.000000,,,,,,5,0,355,0,0,0.000000,real,openai/gpt-oss-120b,0.005100

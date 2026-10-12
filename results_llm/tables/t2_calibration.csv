@@ -1,0 +1,5 @@
+dataset,method,brier_mean,brier_lo,brier_hi,brier_std,brier_n,ece_mean,ece_lo,ece_hi,ece_std,ece_n,n_fitted,n_splits,repair_mode,llm_model,llm_fallback_rate
+breast_cancer,raw,0.194660,0.187280,0.200760,0.008988,5,0.119520,0.101540,0.135400,0.021485,5,5,5,real,openai/gpt-oss-120b,0.005100
+breast_cancer,logistic,0.195460,0.185018,0.205660,0.013397,5,0.140220,0.118920,0.158300,0.026116,5,5,5,real,openai/gpt-oss-120b,0.005100
+breast_cancer,isotonic,0.180820,0.170940,0.193440,0.014897,5,0.069620,0.039300,0.105237,0.044396,5,5,5,real,openai/gpt-oss-120b,0.005100
+breast_cancer,multivariate,0.194640,0.183500,0.210040,0.017160,5,0.091040,0.076360,0.104640,0.019014,5,5,5,real,openai/gpt-oss-120b,0.005100

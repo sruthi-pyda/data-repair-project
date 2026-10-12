@@ -1,0 +1,2 @@
+dataset,n_detections_total,n_decided_cells,detection_precision,detection_recall,detection_f1,top1_repair_accuracy,n_genuine_corruptions_full_dataset,n_detected_genuine,n_false_negatives,repair_mode,llm_model,llm_fallback_rate
+breast_cancer,392,355,1.000000,0.562599,0.720081,0.709859,631,355,276,real,openai/gpt-oss-120b,0.005100

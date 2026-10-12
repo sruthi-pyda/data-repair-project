@@ -37,6 +37,30 @@ The key is read from the environment only. It is never read into a log line, a
 hand-written `__repr__` that prints `api_key='<set>'` / `'<unset>'`, and every
 message that could conceivably echo the key is passed through `_redact()`.
 
+KEY ROTATION (a throughput problem, not a feature)
+==================================================
+A full experiment is 392 (breast_cancer) + 7,093 (smartfactory) + 5,829
+(adult) = 13,314 calls, and Groq rate-limits **per key**. Backing off on a 429
+while a spare key sits idle wastes wall-clock time for nothing, so:
+
+    LLM_API_KEYS = key1,key2,key3,...        (comma-separated pool)
+    LLM_API_KEY  = key1                      (single key; the pool falls back
+                                              to [api_key])
+
+`LLMConfig.key_pool` is the de-duplicated list of *usable* keys (placeholders
+dropped). On HTTP 429 for the active key the repairer advances to the next key
+in the pool and retries **immediately** — no sleep, and the retry budget is not
+consumed, because a fresh key is not the same request being re-sent. Only when
+every key has been rate-limited **within this one request** does it fall back
+to the existing exponential backoff, and then, if that also fails, to
+`MockRepairer` for that cell. The rotated-to index persists across cells, so a
+key that is already throttled is not tried again for the next cell.
+
+`LLMStats.rate_limited` counts 429 responses and `LLMStats.key_rotations`
+counts the advances, so a run can report "we were throttled 240 times and
+rotated 238 times" instead of silently taking four times as long. Keys
+themselves never appear in the stats, the logs or any artifact.
+
 DATA LEAKAGE PREVENTION (CLAUDE.md §3 — non-negotiable)
 =======================================================
 The outgoing request body is built **only** from `RepairContext`, which is
@@ -151,6 +175,36 @@ PLACEHOLDER_KEYS: Tuple[str, ...] = (
 # HTTP statuses worth retrying: rate limiting and server-side faults.
 RETRYABLE_STATUSES: Tuple[int, ...] = (408, 409, 425, 429)
 
+# The one status that rotation reacts to: "this key is throttled right now".
+# 5xx is a provider-side fault and affects every key, so rotating on it would
+# burn the whole pool on one outage.
+RATE_LIMIT_STATUS: int = 429
+
+
+def is_usable_key(key: Optional[str]) -> bool:
+    """
+    True when `key` looks like a real credential rather than a placeholder.
+
+    A blank value, or one of `PLACEHOLDER_KEYS` / anything starting ``your-``
+    or ``your_`` (as shipped in `.env.example`), counts as *absent*, so a
+    half-filled `.env` falls back cleanly instead of burning one
+    authentication failure per cell.
+    """
+    text = (key or "").strip()
+    if not text:
+        return False
+    lowered = text.lower()
+    if lowered in PLACEHOLDER_KEYS:
+        return False
+    return not (lowered.startswith("your-") or lowered.startswith("your_"))
+
+
+def _split_keys(raw: Optional[str]) -> Tuple[str, ...]:
+    """Parse ``LLM_API_KEYS`` — a comma-separated pool — order preserved."""
+    if not raw:
+        return ()
+    return tuple(part.strip() for part in raw.split(",") if part.strip())
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Errors
@@ -228,6 +282,9 @@ class LLMConfig:
     ------
     api_key : str | None
         From LLM_API_KEY. Never logged.
+    api_keys : tuple[str, ...]
+        From LLM_API_KEYS (comma-separated), for per-key rate-limit rotation.
+        Empty means "the pool is just `api_key`". Never logged.
     base_url : str | None
         From LLM_BASE_URL. `None` means the provider default (OpenAI).
         xAI/Grok example: https://api.x.ai/v1
@@ -244,6 +301,9 @@ class LLMConfig:
         0.0 disables sleeping (used by tests).
     cache_dir : str
         Directory for the on-disk response cache.
+    use_cache : bool
+        Default for `LLMRepairer(use_cache=...)`. False forces fresh calls
+        (``--no-llm-cache`` on the experiment runner).
     """
 
     api_key: Optional[str] = None
@@ -260,6 +320,9 @@ class LLMConfig:
     max_retries: int = 2
     retry_backoff_s: float = 0.5
     cache_dir: str = ".cache/llm"
+    # Declared last so every existing positional construction keeps working.
+    api_keys: Tuple[str, ...] = ()
+    use_cache: bool = True
 
     # ── Construction ────────────────────────────────────────────────────────
 
@@ -274,6 +337,11 @@ class LLMConfig:
 
         The key is read straight into the dataclass field. It is not logged,
         echoed, or written anywhere by this method.
+
+        ``LLM_API_KEYS`` (comma-separated) populates the rotation pool. When it
+        is absent the pool falls back to ``[LLM_API_KEY]``; when only
+        ``LLM_API_KEYS`` is set, its first entry also becomes ``api_key`` so a
+        single-key caller (and the default transport) still works.
         """
         env = _load_dotenv_values(dotenv_path)
 
@@ -286,8 +354,13 @@ class LLMConfig:
             val = val.strip()
             return val or None
 
+        pool = _split_keys(_get("LLM_API_KEYS"))
+        single = _get("LLM_API_KEY") or (pool[0] if pool else None)
+
         return cls(
-            api_key=_get("LLM_API_KEY"),
+            api_key=single,
+            api_keys=pool or ((single,) if single else ()),
+            use_cache=_as_bool(_get("LLM_USE_CACHE"), True),
             base_url=_get("LLM_BASE_URL"),
             model=_get("LLM_MODEL") or DEFAULT_MODEL,
             temperature=_as_float(_get("LLM_TEMPERATURE"), 0.0),
@@ -301,29 +374,50 @@ class LLMConfig:
     # ── Introspection ───────────────────────────────────────────────────────
 
     @property
+    def key_pool(self) -> Tuple[str, ...]:
+        """
+        The usable keys, de-duplicated, in order — the rotation pool.
+
+        ``api_keys`` wins when it is set; otherwise the pool is ``[api_key]``.
+        Placeholders and blanks are dropped, so a half-filled `.env` yields an
+        empty pool (i.e. *unconfigured*) rather than a key that cannot work.
+        """
+        raw = self.api_keys if self.api_keys else ((self.api_key,) if self.api_key else ())
+        seen: Dict[str, None] = {}
+        for key in raw:
+            text = (key or "").strip()
+            if is_usable_key(text) and text not in seen:
+                seen[text] = None
+        return tuple(seen)
+
+    @property
+    def n_api_keys(self) -> int:
+        """Size of the rotation pool (never the keys themselves)."""
+        return len(self.key_pool)
+
+    @property
+    def primary_api_key(self) -> Optional[str]:
+        """First usable key, or ``api_key`` when nothing in the pool is usable."""
+        pool = self.key_pool
+        return pool[0] if pool else self.api_key
+
+    @property
     def is_configured(self) -> bool:
         """
-        True when a usable key is present.
+        True when at least one usable key is present.
 
         A missing, blank or placeholder key (e.g. the shipped
         "your-key-here") counts as *unconfigured*, so the repairer falls back
         with `FallbackReason.NOT_CONFIGURED` instead of burning one
-        authentication failure per cell.
+        authentication failure per cell. With a pool, one usable key is enough.
         """
-        key = (self.api_key or "").strip()
-        if not key:
-            return False
-        lowered = key.lower()
-        if lowered in PLACEHOLDER_KEYS:
-            return False
-        if lowered.startswith("your-") or lowered.startswith("your_"):
-            return False
-        return True
+        return bool(self.key_pool)
 
     @property
     def api_key_status(self) -> str:
         """'<set>' or '<unset>' — the only key information this module reveals."""
-        return "<set>" if (self.api_key or "").strip() else "<unset>"
+        present = bool((self.api_key or "").strip()) or bool(self.key_pool)
+        return "<set>" if present else "<unset>"
 
     @property
     def effective_base_url(self) -> str:
@@ -335,6 +429,7 @@ class LLMConfig:
         return {
             "api_key_status": self.api_key_status,
             "is_configured": self.is_configured,
+            "n_api_keys": self.n_api_keys,
             "base_url": self.base_url,
             "model": self.model,
             "temperature": self.temperature,
@@ -343,12 +438,14 @@ class LLMConfig:
             "max_retries": self.max_retries,
             "retry_backoff_s": self.retry_backoff_s,
             "cache_dir": self.cache_dir,
+            "use_cache": self.use_cache,
         }
 
     def __repr__(self) -> str:  # str() falls back to this too
         return (
             "LLMConfig("
             f"api_key={self.api_key_status!r}, "
+            f"n_api_keys={self.n_api_keys!r}, "
             f"base_url={self.base_url!r}, "
             f"model={self.model!r}, "
             f"temperature={self.temperature!r}, "
@@ -368,6 +465,19 @@ def _as_float(raw: Optional[str], default: float) -> float:
     except (TypeError, ValueError):
         logger.warning("Ignoring non-numeric environment value; using %s.", default)
         return default
+
+
+def _as_bool(raw: Optional[str], default: bool) -> bool:
+    """Parse a boolean environment value ('0', 'false', 'no', 'off' → False)."""
+    if raw is None:
+        return default
+    text = raw.strip().lower()
+    if text in ("1", "true", "yes", "on"):
+        return True
+    if text in ("0", "false", "no", "off"):
+        return False
+    logger.warning("Ignoring non-boolean environment value; using %s.", default)
+    return default
 
 
 def _load_dotenv_values(dotenv_path: Union[str, Path, None]) -> Dict[str, str]:
@@ -453,7 +563,14 @@ class LLMStats:
         Physical attempts, including retries. `transport_attempts - llm_calls`
         is the retry volume.
     retries : int
-        Retried attempts (429/5xx only).
+        Retried attempts after a backoff (429/5xx only). A rotation retry is
+        NOT counted here: it consumes no backoff and no retry budget.
+    rate_limited : int
+        HTTP 429 responses received, across every key.
+    key_rotations : int
+        Times the active key advanced to a spare because of a 429.
+        ``rate_limited - key_rotations`` is roughly "429s we had to wait out
+        because the whole pool was throttled".
     cache_hits : int
         Cells answered from the on-disk cache without a transport call.
     successes : int
@@ -472,6 +589,9 @@ class LLMStats:
     successes: int = 0
     fallbacks: int = 0
     fallback_reasons: Dict[str, int] = field(default_factory=dict)
+    # Rotation counters, declared last so positional construction is unchanged.
+    rate_limited: int = 0
+    key_rotations: int = 0
 
     def record_fallback(self, reason: "FallbackReason") -> None:
         """Increment the total and the per-reason counter."""
@@ -494,9 +614,20 @@ class LLMStats:
         self.successes = 0
         self.fallbacks = 0
         self.fallback_reasons = {}
+        self.rate_limited = 0
+        self.key_rotations = 0
 
-    def to_dict(self) -> Dict[str, Any]:
-        return {
+    def to_dict(self, include_rotation: bool = False) -> Dict[str, Any]:
+        """
+        Serialisable counters.
+
+        ``include_rotation`` adds ``rate_limited`` and ``key_rotations``. It
+        defaults to False because the nine-key shape below is a published
+        schema that `tests/test_llm_repair.py` pins exactly; every *new*
+        consumer (the pipeline bundle, `run_metadata.json`, the dashboard)
+        asks for the full view.
+        """
+        payload = {
             "cells": self.cells,
             "llm_calls": self.llm_calls,
             "transport_attempts": self.transport_attempts,
@@ -507,6 +638,10 @@ class LLMStats:
             "fallback_reasons": dict(self.fallback_reasons),
             "fallback_rate": round(self.fallback_rate, 4),
         }
+        if include_rotation:
+            payload["rate_limited"] = self.rate_limited
+            payload["key_rotations"] = self.key_rotations
+        return payload
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -523,6 +658,13 @@ class LLMTransport(Protocol):
     over the wire — so a fake transport in a test can assert on the real thing.
     Implementations return the assistant message **text** and raise
     `LLMHTTPError` / `LLMTimeoutError` / `LLMTransportError` on failure.
+
+    `set_api_key` is **optional**: key rotation calls it before every attempt
+    when the transport defines it (`LLMRepairer._apply_active_key` duck-types
+    it), so a transport that ignores rotation — or a fake from an older test —
+    needs no change. The key stays out of `chat_completion`'s arguments on
+    purpose: the captured payload is asserted on in leakage tests and must
+    never contain a credential.
     """
 
     name: str
@@ -543,20 +685,33 @@ class OpenAISDKTransport:
 
     def __init__(self, config: LLMConfig) -> None:
         self._config = config
+        self._api_key = config.primary_api_key
         self._client: Any = None
+
+    def set_api_key(self, api_key: Optional[str]) -> None:
+        """
+        Switch the credential (key rotation).
+
+        The SDK client binds its key at construction, so a change discards the
+        cached client and the next call builds a new one. A no-op when the key
+        is unchanged, so the common path still reuses one client.
+        """
+        if api_key != self._api_key:
+            self._api_key = api_key
+            self._client = None
 
     def _ensure_client(self) -> Any:
         if self._client is None:
             from openai import OpenAI  # imported lazily: optional dependency
 
-            kwargs: Dict[str, Any] = {"api_key": self._config.api_key}
+            kwargs: Dict[str, Any] = {"api_key": self._api_key}
             if self._config.base_url:
                 kwargs["base_url"] = self._config.base_url
             self._client = OpenAI(**kwargs)
         return self._client
 
     def chat_completion(self, payload: Dict[str, Any], timeout_s: float) -> str:
-        key = self._config.api_key
+        key = self._api_key
         try:
             client = self._ensure_client()
             response = client.chat.completions.create(timeout=timeout_s, **payload)
@@ -596,13 +751,19 @@ class UrllibTransport:
 
     def __init__(self, config: LLMConfig) -> None:
         self._config = config
+        self._api_key = config.primary_api_key
+
+    def set_api_key(self, api_key: Optional[str]) -> None:
+        """Switch the credential (key rotation); the next request's
+        ``Authorization`` header carries this key."""
+        self._api_key = api_key
 
     def chat_completion(self, payload: Dict[str, Any], timeout_s: float) -> str:
         import socket
         import urllib.error
         import urllib.request
 
-        key = self._config.api_key
+        key = self._api_key
         url = f"{self._config.effective_base_url}/chat/completions"
         body = json.dumps(payload).encode("utf-8")
         request = urllib.request.Request(
@@ -744,13 +905,18 @@ class LLMRepairer:
     client : LLMTransport | None
         Injected transport. **Tests always pass one, so no test touches the
         network.** `None` builds the default transport lazily, on first use.
-    use_cache : bool
-        False disables cache reads and writes for this repairer.
+    use_cache : bool | None
+        False disables cache reads and writes for this repairer. ``None``
+        (the default) takes `LLMConfig.use_cache`, which is itself True
+        unless ``LLM_USE_CACHE`` or ``--no-llm-cache`` says otherwise.
 
     Notes
     -----
     `repair()` never raises. Every failure path falls back to the mock repairer
     for that cell and is counted in `stats`.
+
+    Keys rotate on HTTP 429 — see the module docstring. `active_api_key` is the
+    credential the next attempt will use; it is never logged or serialised.
     """
 
     def __init__(
@@ -761,15 +927,19 @@ class LLMRepairer:
         seed: int = 42,
         cache: Union["DiskCache", str, Path, None] = None,
         client: Optional[LLMTransport] = None,
-        use_cache: bool = True,
+        use_cache: Optional[bool] = None,
     ) -> None:
         self.config = config if config is not None else LLMConfig.from_env()
         self.top_k = top_k
         self.seed = seed
         self.fallback = fallback if fallback is not None else MockRepairer(seed=seed, top_k=top_k)
-        self.use_cache = use_cache
+        self.use_cache = self.config.use_cache if use_cache is None else bool(use_cache)
         self._stats = LLMStats()
         self._transport: Optional[LLMTransport] = client
+        # Rotation state. The index persists across cells, so a key that has
+        # already been throttled is not tried again for the next cell.
+        self._keys: List[str] = list(self.config.key_pool)
+        self._key_index: int = 0
 
         if cache is None:
             self.cache: Any = DiskCache(self.config.cache_dir)
@@ -814,7 +984,7 @@ class LLMRepairer:
             logger.warning(
                 "Unexpected LLM repair failure for [%s row=%d]: %s",
                 context.column, context.row_id,
-                _redact(exc, self.config.api_key),
+                self._scrub(exc),
             )
             return self._fallback(context, FallbackReason.REQUEST_FAILED)
 
@@ -889,13 +1059,13 @@ class LLMRepairer:
             except LLMTimeoutError as exc:
                 logger.warning(
                     "LLM timeout for [%s row=%d]: %s",
-                    context.column, context.row_id, _redact(exc, self.config.api_key),
+                    context.column, context.row_id, self._scrub(exc),
                 )
                 return FallbackReason.TIMEOUT
             except LLMError as exc:
                 logger.warning(
                     "LLM request failed for [%s row=%d]: %s",
-                    context.column, context.row_id, _redact(exc, self.config.api_key),
+                    context.column, context.row_id, self._scrub(exc),
                 )
                 return FallbackReason.REQUEST_FAILED
             from_cache = False
@@ -917,19 +1087,47 @@ class LLMRepairer:
 
     def _send_with_retries(self, payload: Dict[str, Any]) -> str:
         """
-        Send one request, retrying 429/5xx with exponential backoff.
+        Send one request: rotate keys on 429, then back off, then give up.
 
-        400/401/403 and every other permanent status propagate on the first
-        attempt: retrying them only wastes quota.
+        Order of preference on HTTP 429, cheapest first:
+
+        1. **Rotate.** Advance to a key in the pool that has not been
+           rate-limited *during this request* and retry at once. No sleep, and
+           the retry budget is untouched — a different credential is not the
+           same request being re-sent.
+        2. **Back off.** Once every key has 429'd here, fall through to the
+           existing exponential backoff on the current key.
+        3. **Raise.** The caller turns that into a per-cell mock fallback.
+
+        429 is the only rotation trigger: a 5xx is a provider-side fault that
+        affects every key, so rotating on it would burn the whole pool on one
+        outage. 400/401/403 and every other permanent status propagate on the
+        first attempt — retrying them only wastes quota.
         """
         transport = self._transport_or_build()
         attempt = 0
+        # Key indices already throttled for THIS request. Reset per request,
+        # because a rate limit is a time window, and the backoff below buys
+        # exactly that time.
+        throttled: set = set()
         while True:
             attempt += 1
+            self._apply_active_key(transport)
             self._stats.transport_attempts += 1
             try:
                 return transport.chat_completion(payload, timeout_s=self.config.timeout_s)
             except LLMHTTPError as exc:
+                if exc.status_code == RATE_LIMIT_STATUS:
+                    self._stats.rate_limited += 1
+                    if self._rotate_key(throttled):
+                        self._stats.key_rotations += 1
+                        logger.info(
+                            "Rate limited; rotated to key %d of %d and retrying "
+                            "immediately (no backoff).",
+                            self._key_index + 1, len(self._keys),
+                        )
+                        attempt -= 1  # rotation is free: not a backoff retry
+                        continue
                 retryable = is_retryable_status(exc.status_code)
                 if not retryable or attempt > self.config.max_retries:
                     raise
@@ -941,6 +1139,56 @@ class LLMRepairer:
                 )
                 if delay > 0:
                     time.sleep(delay)
+
+    # ── Key rotation ────────────────────────────────────────────────────────
+
+    @property
+    def active_api_key(self) -> Optional[str]:
+        """The credential the next attempt will use. Never logged."""
+        if self._keys:
+            return self._keys[self._key_index]
+        return self.config.api_key
+
+    def _apply_active_key(self, transport: Any) -> None:
+        """
+        Tell the transport which key to use, if it can be told.
+
+        Duck-typed on purpose: `set_api_key` is not part of the
+        `LLMTransport` protocol, so a transport (or a test fake) that predates
+        rotation keeps working untouched.
+        """
+        setter = getattr(transport, "set_api_key", None)
+        if callable(setter):
+            try:
+                setter(self.active_api_key)
+            except Exception:  # noqa: BLE001 - rotation must never be fatal
+                logger.debug("Transport rejected a key switch; keeping the current one.")
+
+    def _rotate_key(self, throttled: set) -> bool:
+        """
+        Advance to the next key not yet throttled in this request.
+
+        Returns True when the active key changed. False means "no spare key" —
+        a single-key pool, or every key already 429'd here — which is the
+        signal to fall back to backoff.
+        """
+        if len(self._keys) <= 1:
+            return False
+        throttled.add(self._key_index)
+        n = len(self._keys)
+        for step in range(1, n):
+            candidate = (self._key_index + step) % n
+            if candidate not in throttled:
+                self._key_index = candidate
+                return True
+        return False
+
+    def _scrub(self, text: Any) -> str:
+        """`_redact` against every key in the pool, not just the first."""
+        out = _redact(text, self.config.api_key)
+        for key in self._keys:
+            out = _redact(out, key)
+        return out
 
     def _transport_or_build(self) -> LLMTransport:
         """Return the injected transport, or build the default one lazily."""
