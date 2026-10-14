@@ -495,6 +495,30 @@ Config in `configs/default.yaml` and `configs/costs.yaml`. Random seed 42 throug
 
 ---
 
+## 8b. Working protocol (MANDATORY — applies to every task)
+
+1. **Commit after every modification.** One logical change, one commit, so any
+   state can be reverted. The repo is already initialised; never re-init.
+2. **Never execute before planning.** Every methodology and every attempt gets
+   a written plan first, in `docs/`, committed before work starts.
+3. **Maintain todos continuously.** Treat each as a real task. Keep the plan
+   file's checkboxes current so the trajectory is never lost.
+4. **Manage context with subagents.** Run independent work in parallel on
+   disjoint files. Default Opus 5 medium effort; escalate to high effort when
+   genuinely stuck; if that still fails, ask the user for insight.
+5. **Non-sycophantic tests at every major point.** A test that cannot fail is
+   not a test. Prefer tests that re-derive the expected answer independently
+   rather than calling the code under test.
+6. **Think in fundamentals.** Ask what the quantity actually means and what is
+   physically recoverable before optimising anything.
+7. **When stuck, research.** Find how the problem has been solved
+   mathematically or in published systems, decompose those solutions into the
+   factors that actually carry the predictive edge, then recombine.
+8. **Never fabricate a number.** Every reported figure comes from code that
+   ran. If the method loses, report the loss.
+
+---
+
 ## 9. Collaboration
 
 Two-person project. Sruthi Pyda wrote Phases 1–10. **As of 2026-09-22 the project
