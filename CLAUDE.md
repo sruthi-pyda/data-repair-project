@@ -150,20 +150,54 @@ invalidates already-reported numbers.
 
 ## 4. Current state
 
-**Phases 1–11 complete, plus Phase 6b (calibrated abstention). Phases 12–13
-not started.**
+**All phases complete (1–13, including 6b calibrated abstention and 12 real
+LLM). A research program is now running on top — see `docs/research_program.md`.**
 
-Repo: `github.com/sruthi-pyda/data-repair-project`. Three stacked branches off
-`main` (HEAD `5d8cc22`), none merged yet:
+Repo: `github.com/sruthi-pyda/data-repair-project`. Stacked branches off `main`
+(HEAD `5d8cc22`), **none merged yet**:
 
 ```
 main
- └─ fix/known-issues-phase5      §5.1–5.4 fixes
-     └─ feat/phase11-dashboard   Phase 11
-         └─ feat/calibrated-abstention   Phase 6b  ← current tip
+ └─ fix/known-issues-phase5          §5.1–5.4 fixes
+     └─ feat/phase11-dashboard       Phase 11 dashboard
+         └─ feat/calibrated-abstention   Phase 6b
+             └─ feat/phase13-experiments Phase 13 runner + CIs
+                 └─ feat/phase12-llm     Phase 12 real LLM (Groq)
+                     └─ research/from-fundamentals  ← current tip
 ```
 
-Tests: **1268 passing** on pandas 2.3 (~3 min).
+Tests: **1564 passing** at `feat/phase12-llm`, plus the research routes
+(~1,760 on the research branch) on pandas 2.3.
+
+### The research program (current work)
+
+`docs/research_program.md` reframes the optimisation target. Repair accuracy
+mostly measures a dataset's recoverable/destroyed corruption mix (measured:
+98–100 % on mangled values, 29–50 % on erased ones), so chasing it chases the
+dataset. The genuine prediction problem is **detection**, `P(cell corrupted)`,
+which is severely imbalanced (adult 0.25 %) and is what published systems
+benchmark.
+
+`docs/literature.md` establishes what the field actually achieves and what
+carries the edge. **Read it before claiming any novelty** — calibrating a
+detector is not novel (HoloDetect 2019), and Conformal Data Cleaning
+(AISTATS 2024) already pairs per-column conditional models with calibrated
+uncertainty.
+
+Measured detection baseline (`results/detection_leaderboard.md`,
+`src/detection_eval/`, 5 stratified cell splits, seed 42):
+
+| dataset | prevalence | PR-AUC [95 % CI] | ROC-AUC | best-F1 (oracle) |
+|---|---:|---:|---:|---:|
+| smartfactory | 0.0158 | 1.0000 [1.0000, 1.0000] | 1.0000 | 1.0000 |
+| breast_cancer | 0.0752 | 0.6712 [0.6486, 0.6917] | 0.8222 | 0.7835 |
+| adult | 0.0025 | 0.0025 [0.0025, 0.0025] | 0.4957 | 0.0050 |
+
+Adult's PR-AUC equals its prevalence to six decimals — a constant scorer —
+and its ROC-AUC is **below** 0.5. The rule detector carries literally zero
+information there; 0.0025 is the floor, never a score. A rule detector is a
+*set*, not a *ranking*, so PR-AUC measures it on an axis it does not attempt;
+that gap is the headroom.
 
 | File | Tests | Phase |
 |---|---|---|
