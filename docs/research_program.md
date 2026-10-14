@@ -269,3 +269,62 @@ neither wins everywhere
 That is exactly R1's factor 3 (ensembling) and factor 2 (the first ~20
 labels, Raha 0.40 → 0.85), and it is now motivated by our own measurements
 rather than by the literature alone.
+
+
+---
+
+## 6. Wave 2 (W2.1) — ensemble + label efficiency
+
+PR-AUC, 5 splits, seed 42, 95 % CI. Full curve in `results/w2_ensemble.md`.
+
+| dataset | rule_only | cond_only | **b0 noisy-OR** | b20 | b100 | full |
+|---|---:|---:|---:|---:|---:|---:|
+| breast_cancer | 0.6712 | 0.6361 | **0.7209** [0.6977, 0.7371] | 0.6763 | 0.7617 | 0.7898 (GBM 0.8082) |
+| adult | 0.0025 | 0.0110 | 0.0106 | 0.0106 | **0.2656** [0.2155, 0.3124] | **0.7024** [0.6879, 0.7169] |
+| smartfactory | 1.0000 | 1.0000 | 1.0000 | — | — | tie at ceiling |
+
+### Findings
+
+1. **Complementarity is real and FREE on breast_cancer.** Noisy-OR at *zero
+   labels* beats both single detectors with non-overlapping CIs
+   (0.7209 vs 0.6712 / 0.6361). Rank-averaging is clearly worse (0.6954) —
+   it inflates near-zero scores; noisy-OR is the right fusion.
+2. **On adult the complementarity thesis does NOT win.** Label-free fusion is
+   slightly *worse* than the conditional model alone (0.0106 vs 0.0110).
+   What wins is labels.
+3. **Raha's "20 labels" does not transfer to extreme imbalance.** At 0.251 %
+   prevalence, k ≤ 20 buys *literally nothing* — the sampler draws zero
+   positives in 5/5 splits. k=100 buys 24×. The field's label-efficiency
+   results are measured at 5–40 % error rates; **this is a measured negative
+   result at 0.25 % that nobody appears to have reported.**
+4. **The sampler, not the learner, is the bottleneck.** b100 0.2656 vs full
+   0.7024 — a 2.6× gap that more labels of the same kind would close only
+   slowly. Global samplers fail outright on adult: `top_combiner` draws zero
+   positives at every k ≤ 100, because the global top is the rules' `fnlwgt`
+   false positives plus blank `workclass`/`occupation` — all guaranteed clean.
+5. **Whole-table and per-column disagree about which method is better.** On
+   adult's `income` column, supervised b100 scores 0.3456 vs cond_only's
+   0.6554: the learner buys whole-table gain by learning "corruption lives in
+   the binary column" and pays in within-column resolution. Both must be
+   reported.
+
+### Measurement catch worth keeping
+
+Conditional features are scored **out-of-fold over rows** (5 folds). A single
+in-sample fit scores 0.5014 on breast_cancer vs 0.6408 out-of-fold — in-sample
+would have handed us a handicapped baseline to beat and a fake improvement.
+5-fold reproduces wave 1's row-split number to 0.0004.
+
+### Wave 3 — what the bottleneck points at
+
+- [ ] W3.1 **Uncertainty-targeted label acquisition.** The gap b100 → full is
+      a *sampling* problem: at 0.25 % prevalence, random and global-top
+      sampling both miss positives. Use the conditional model's own scores to
+      target queries where positives are likely, and measure the label curve
+      against random/global-top. This is the novel direction the measurements
+      actually point at.
+- [ ] W3.2 Calibrate the ensemble's output and **measure** calibration
+      (ECE/Brier/reliability) — per `docs/literature.md`, 0 of 7 surveyed
+      papers do this, and it connects detection to the existing Phase 6b/7/8
+      decision layer.
+- [ ] W3.3 Write-up positioned against Conformal Data Cleaning (AISTATS 2024).
