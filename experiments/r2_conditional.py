@@ -666,32 +666,48 @@ def build_report(
     out.append("```json")
 
     def _json_safe(value):
-        if isinstance(value, float) and not np.isfinite(value):
-            return None
-        raise TypeError(value)
+        """Recursively replace non-finite floats with None.
+
+        This must run BEFORE json.dumps, not as its ``default=`` hook: a
+        float('nan') is a float, so the encoder handles it natively and
+        ``allow_nan=False`` raises before ``default`` is ever consulted.
+        A metric is legitimately undefined (e.g. PR-AUC with no positives
+        in a split), and null is the honest encoding — never 0.0, which
+        would read as a real score.
+        """
+        if isinstance(value, dict):
+            return {k: _json_safe(v) for k, v in value.items()}
+        if isinstance(value, (list, tuple)):
+            return [_json_safe(v) for v in value]
+        if isinstance(value, (float, np.floating)):
+            return None if not np.isfinite(value) else float(value)
+        if isinstance(value, (int, np.integer)):
+            return int(value)
+        return value
 
     out.append(
         json.dumps(
-            {
-                res.dataset: {
-                    "overall": {m: v.to_dict() for m, v in res.overall.items()},
-                    "non_missing": {
-                        m: v.to_dict() for m, v in res.non_missing.items()
-                    },
-                    "per_column": {
-                        mode: {c: v.to_dict() for c, v in cols.items()}
-                        for mode, cols in res.per_column.items()
-                    },
-                    "tail_ablation": {
-                        t: v.to_dict() for t, v in res.tail_ablation.items()
-                    },
-                    "skipped_columns": res.skipped_columns,
+            _json_safe(
+                {
+                    res.dataset: {
+                        "overall": {m: v.to_dict() for m, v in res.overall.items()},
+                        "non_missing": {
+                            m: v.to_dict() for m, v in res.non_missing.items()
+                        },
+                        "per_column": {
+                            mode: {c: v.to_dict() for c, v in cols.items()}
+                            for mode, cols in res.per_column.items()
+                        },
+                        "tail_ablation": {
+                            t: v.to_dict() for t, v in res.tail_ablation.items()
+                        },
+                        "skipped_columns": res.skipped_columns,
+                    }
+                    for res in results
                 }
-                for res in results
-            },
+            ),
             indent=2,
             allow_nan=False,
-            default=_json_safe,
         )
     )
     out.append("```")

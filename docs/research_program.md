@@ -210,4 +210,62 @@ rules were cut); chasing 0.991 on Adult (different corruption entirely).
 
 ## 5. Results
 
-_(leaderboard filled in by R0's harness; no number enters by hand)_
+### R0 baseline (rule detector) vs R2 (conditional model)
+
+PR-AUC, 95 % CI. A constant scorer's PR-AUC equals prevalence regardless of
+split protocol, so the adult baseline comparison is valid across the two
+harnesses.
+
+| dataset | rule detector (R0) | conditional `full` (R2) | marginal control (R2) |
+|---|---:|---:|---:|
+| adult | 0.0025 (= prevalence, ROC 0.4957) | **0.0120** [0.0108, 0.0131] (ROC **0.8875**) | 0.0085 [0.0077, 0.0091] |
+| breast_cancer | **0.6712** [0.6486, 0.6917] | 0.6404 [0.5729, 0.7034] | 0.6325 [0.5729, 0.6909] |
+| smartfactory | 1.0000 | 1.0000 | 1.0000 (trivial) |
+
+**On the `income` column alone — where adult's corruption actually lives:**
+
+| mode | PR-AUC | best-F1 (oracle) |
+|---|---:|---:|
+| conditional `full` | **0.6997** | 0.6758 |
+| `ratio` | 0.5295 | — |
+| marginal control | 0.1321 | — |
+
+### What this establishes
+
+1. **Conditioning on the row is the factor, confirmed by the control.** On
+   adult, `full` beats `marginal` with **non-overlapping** CIs
+   ([0.0108, 0.0131] vs [0.0077, 0.0091]), and 0.70 vs 0.13 PR-AUC on the
+   income column. The ablation was built to be able to refute this and did
+   not. ROC-AUC moves 0.4957 → 0.8875: from anti-correlated to a genuinely
+   good ranking.
+2. **It beats R1's derived ceiling.** R1 predicted F1 ≈ 0.3–0.4 from the
+   ~85–87 % accuracy of Adult classification. We measure oracle F1 0.6758.
+   The derivation assumed *hard* classification; soft probabilities separate
+   better, because a flipped cell gets very low `P(observed)` while a merely
+   misclassified clean cell gets a moderate one. **Caveat: 0.6758 is an
+   oracle threshold (R0's upper bound), not an operating point, and is not
+   comparable to published F1 at chosen thresholds.**
+3. **Overall adult PR-AUC stays small (0.0120) and that is honest.** The
+   corruption is confined to 1 of 15 columns, so scoring all 203,505 cells
+   dilutes precision with 14 guaranteed-clean columns. Per-column PR-AUC is
+   the meaningful number; report both.
+4. **On breast_cancer the conditional model LOSES to the rule detector**
+   (0.6404 vs 0.6712), and `full` ≈ `marginal` there, so conditioning adds
+   nothing. Reported as a loss.
+5. **Smart Factory remains uninformative.** Its non-missing view has **zero**
+   positives — all corruption is missing values — correctly rendered `—`
+   rather than 0.0.
+
+### The synthesis that defines wave 2
+
+The two detector families are **complementary, not competing**:
+
+```
+rules        → syntactic corruption (breast_cancer: 0.67 vs 0.64)
+conditional  → semantic corruption  (adult: 0.0120 vs 0.0025, 5x on income)
+neither wins everywhere
+```
+
+That is exactly R1's factor 3 (ensembling) and factor 2 (the first ~20
+labels, Raha 0.40 → 0.85), and it is now motivated by our own measurements
+rather than by the literature alone.
