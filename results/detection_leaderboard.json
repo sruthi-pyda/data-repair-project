@@ -1,0 +1,281 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "method": "rule_detector",
+      "dataset": "breast_cancer",
+      "notes": "Phase 3 six-rule detector (src/detection/detector.py), IQR k=3, fences off for smartfactory per shipped config. Scores are 6 fixed constants + 0.0, so the ranking is almost entirely tied; it is a set, not a ranking. No fitting, so the CI is eval-sample noise only.",
+      "recorded_at": "2026-10-14T11:04:43",
+      "n": 8388,
+      "n_pos": 631,
+      "prevalence": 0.07522651406771579,
+      "k": 631,
+      "n_splits": 5,
+      "seed": 42,
+      "split_fraction": 0.3,
+      "full": {
+        "pr_auc": 0.6497292184820667,
+        "roc_auc": 0.8106180665610143,
+        "best_f1": 0.7663734115347018,
+        "precision_at_k": 0.6325573642605772,
+        "recall_at_k": 0.6325573642605772,
+        "lift_at_k": 8.408702331882283
+      },
+      "score_structure": {
+        "n_cells": 8388,
+        "n_distinct_scores": 5,
+        "largest_tie_group": 7996,
+        "largest_tie_fraction": 0.9532665712923224,
+        "n_nonzero": 392,
+        "top_groups": [
+          {
+            "score": 0.0,
+            "n_cells": 7996
+          },
+          {
+            "score": 1.0,
+            "n_cells": 247
+          },
+          {
+            "score": 0.9,
+            "n_cells": 129
+          },
+          {
+            "score": 0.7,
+            "n_cells": 13
+          },
+          {
+            "score": 0.85,
+            "n_cells": 3
+          }
+        ]
+      },
+      "pr_auc": {
+        "mean": 0.6711535064476241,
+        "lo": 0.6486431809961222,
+        "hi": 0.6917064122946476,
+        "std": 0.026215907179551672,
+        "n": 5
+      },
+      "roc_auc": {
+        "mean": 0.8222222222222223,
+        "lo": 0.8100529100529101,
+        "hi": 0.8333333333333334,
+        "std": 0.01417258755130038,
+        "n": 5
+      },
+      "best_f1": {
+        "mean": 0.7834937236784617,
+        "lo": 0.7653115150743369,
+        "hi": 0.799834668367996,
+        "std": 0.021038254490002208,
+        "n": 5
+      },
+      "precision_at_k": {
+        "mean": 0.6544720321160222,
+        "lo": 0.6315094112955537,
+        "hi": 0.6754818001199282,
+        "std": 0.02676691510479859,
+        "n": 5
+      },
+      "recall_at_k": {
+        "mean": 0.6544720321160222,
+        "lo": 0.6315094112955537,
+        "hi": 0.6754818001199282,
+        "std": 0.02676691510479859,
+        "n": 5
+      },
+      "lift_at_k": {
+        "mean": 8.712442501608,
+        "lo": 8.406760205394779,
+        "hi": 8.99212809048539,
+        "std": 0.35632570583954054,
+        "n": 5
+      }
+    },
+    {
+      "method": "rule_detector",
+      "dataset": "smartfactory",
+      "notes": "Phase 3 six-rule detector (src/detection/detector.py), IQR k=3, fences off for smartfactory per shipped config. Scores are 6 fixed constants + 0.0, so the ranking is almost entirely tied; it is a set, not a ranking. No fitting, so the CI is eval-sample noise only.",
+      "recorded_at": "2026-10-14T11:04:59",
+      "n": 449255,
+      "n_pos": 7093,
+      "prevalence": 0.015788360730542787,
+      "k": 7093,
+      "n_splits": 5,
+      "seed": 42,
+      "split_fraction": 0.3,
+      "full": {
+        "pr_auc": 1.0,
+        "roc_auc": 1.0,
+        "best_f1": 1.0,
+        "precision_at_k": 1.0,
+        "recall_at_k": 1.0,
+        "lift_at_k": 63.33779782884534
+      },
+      "score_structure": {
+        "n_cells": 449255,
+        "n_distinct_scores": 2,
+        "largest_tie_group": 442162,
+        "largest_tie_fraction": 0.9842116392694572,
+        "n_nonzero": 7093,
+        "top_groups": [
+          {
+            "score": 0.0,
+            "n_cells": 442162
+          },
+          {
+            "score": 1.0,
+            "n_cells": 7093
+          }
+        ]
+      },
+      "pr_auc": {
+        "mean": 1.0,
+        "lo": 1.0,
+        "hi": 1.0,
+        "std": 0.0,
+        "n": 5
+      },
+      "roc_auc": {
+        "mean": 1.0,
+        "lo": 1.0,
+        "hi": 1.0,
+        "std": 0.0,
+        "n": 5
+      },
+      "best_f1": {
+        "mean": 1.0,
+        "lo": 1.0,
+        "hi": 1.0,
+        "std": 0.0,
+        "n": 5
+      },
+      "precision_at_k": {
+        "mean": 1.0,
+        "lo": 1.0,
+        "hi": 1.0,
+        "std": 0.0,
+        "n": 5
+      },
+      "recall_at_k": {
+        "mean": 1.0,
+        "lo": 1.0,
+        "hi": 1.0,
+        "std": 0.0,
+        "n": 5
+      },
+      "lift_at_k": {
+        "mean": 63.33505639097744,
+        "lo": 63.33505639097744,
+        "hi": 63.33505639097744,
+        "std": 0.0,
+        "n": 5
+      }
+    },
+    {
+      "method": "rule_detector",
+      "dataset": "adult",
+      "notes": "Phase 3 six-rule detector (src/detection/detector.py), IQR k=3, fences off for smartfactory per shipped config. Scores are 6 fixed constants + 0.0, so the ranking is almost entirely tied; it is a set, not a ranking. No fitting, so the CI is eval-sample noise only.",
+      "recorded_at": "2026-10-14T11:05:17",
+      "n": 678330,
+      "n_pos": 1701,
+      "prevalence": 0.002507629030118084,
+      "k": 1701,
+      "n_splits": 5,
+      "seed": 42,
+      "split_fraction": 0.3,
+      "full": {
+        "pr_auc": 0.002507629030118084,
+        "roc_auc": 0.4956926173722971,
+        "best_f1": 0.005002713111608147,
+        "precision_at_k": 0.0,
+        "recall_at_k": 0.0,
+        "lift_at_k": 0.0
+      },
+      "score_structure": {
+        "n_cells": 678330,
+        "n_distinct_scores": 169,
+        "largest_tie_group": 672501,
+        "largest_tie_fraction": 0.9914068373800363,
+        "n_nonzero": 5829,
+        "top_groups": [
+          {
+            "score": 0.0,
+            "n_cells": 672501
+          },
+          {
+            "score": 0.55,
+            "n_cells": 1951
+          },
+          {
+            "score": 0.75,
+            "n_cells": 1407
+          },
+          {
+            "score": 0.65,
+            "n_cells": 937
+          },
+          {
+            "score": 0.47,
+            "n_cells": 308
+          },
+          {
+            "score": 0.63,
+            "n_cells": 254
+          },
+          {
+            "score": 0.71,
+            "n_cells": 204
+          },
+          {
+            "score": 0.69,
+            "n_cells": 119
+          }
+        ]
+      },
+      "pr_auc": {
+        "mean": 0.0025061548213996137,
+        "lo": 0.0025061548213996137,
+        "hi": 0.0025061548213996137,
+        "std": 0.0,
+        "n": 5
+      },
+      "roc_auc": {
+        "mean": 0.4957086344580247,
+        "lo": 0.4956061658513516,
+        "hi": 0.49581110306469806,
+        "std": 0.00012871658100287138,
+        "n": 5
+      },
+      "best_f1": {
+        "mean": 0.004999779421496111,
+        "lo": 0.004999779421496111,
+        "hi": 0.004999779421496111,
+        "std": 0.0,
+        "n": 5
+      },
+      "precision_at_k": {
+        "mean": 0.0,
+        "lo": 0.0,
+        "hi": 0.0,
+        "std": 0.0,
+        "n": 5
+      },
+      "recall_at_k": {
+        "mean": 0.0,
+        "lo": 0.0,
+        "hi": 0.0,
+        "std": 0.0,
+        "n": 5
+      },
+      "lift_at_k": {
+        "mean": 0.0,
+        "lo": 0.0,
+        "hi": 0.0,
+        "std": 0.0,
+        "n": 5
+      }
+    }
+  ]
+}
