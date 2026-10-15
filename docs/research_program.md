@@ -328,3 +328,66 @@ would have handed us a handicapped baseline to beat and a fake improvement.
       papers do this, and it connects detection to the existing Phase 6b/7/8
       decision layer.
 - [ ] W3.3 Write-up positioned against Conformal Data Cleaning (AISTATS 2024).
+
+
+---
+
+## 7. Wave 3 (W3.1) — where should a tiny label budget be spent?
+
+Full curves in `results/w3_acquisition.md`. 5 splits, seed 42, bootstrap CIs.
+
+### Adult is the only dataset where the question is meaningful
+
+On breast_cancer the **label-free** combiner (0.7209) already exceeds 80 % of
+full supervision (0.80 x 0.7898 = 0.6318), so "labels needed to reach 80 %"
+is satisfied at k=10 by every strategy and the metric is **degenerate**. It is
+reported, and must not be quoted. Adult is the real test: b0 = 0.0106,
+full = 0.7024.
+
+### Adult: labels needed to reach a fraction of full supervision
+
+| strategy | rounds | 50 % of full | 80 % | best PR-AUC | pos/query |
+|---|---|---|---|---|---|
+| `batch_diverse` | **5** | **100** | — | 0.5408 [0.4786, 0.5888] | 0.048 |
+| `per_column_quota` | 5 | 100 | — | 0.5021 [0.4777, 0.5216] | 0.041 |
+| `batch_diverse` | 1 | 500 | — | 0.4748 | 0.056 |
+| `cond_per_column` | 1 | 500 | — | 0.4929 | 0.055 |
+| `per_column_quota` | 1 | 500 | — | 0.4922 | 0.055 |
+| `random` | 1 | **—** | — | 0.2529 | 0.002 |
+| `global_top` / `conditional_top` / `cond_top_live` / `uncertainty` | 1 | **—** | — | **0.0106** | **0.000** |
+
+### Findings
+
+1. **Sequential acquisition is worth a 5x label reduction.** `batch_diverse`
+   reaches 50 % of full supervision at **k=100 sequentially vs k=500 one-shot**.
+   Refitting between rounds is where active learning earns its keep here.
+2. **Nothing reaches 80 % of full at any budget up to 500.** The b100 -> full
+   gap identified in wave 2 narrows but does not close. Honest ceiling.
+3. **The top of a well-ranked list is not where the positives are.** The
+   conditional model ranks adult well overall (wave 1: ROC-AUC 0.8875), yet
+   `conditional_top` queries **zero positives at every budget up to 500** and
+   never moves off the label-free score. At 0.25 % prevalence the highest-
+   surprise cells are genuinely unusual *clean* values in other columns. Good
+   ranking and good acquisition are different problems.
+4. **Diversity, not confidence, is what works.** The only strategies that
+   learn anything on adult spread the budget — `batch_diverse` (de-duplicated
+   across columns and rows) and `per_column_quota`. Every
+   concentrate-on-the-top strategy returns exactly the label-free score.
+5. **A paradox at the other extreme, measured on breast_cancer:**
+   `conditional_top` achieves **1.000 positives per query** — every queried
+   cell genuinely corrupted, vs random's 0.078 — and its PR-AUC does not beat
+   the label-free combiner, because a sample with no negatives gives a
+   discriminative classifier nothing to learn. **Acquisition precision and
+   learner value pull in opposite directions.** A strategy can be too good at
+   finding positives.
+6. **Random is not a weak control.** On breast_cancer random attains the best
+   PR-AUC of any strategy at k=500 (0.7688). It only collapses on adult, where
+   it never reaches 50 % of full. Report both.
+
+### What this does not show
+
+- Labels are free here; this measures how *informative* a query is, not its
+  human cost.
+- One hyper-parameter setting per dataset; no sweep.
+- Smart Factory excluded: its corruption is exactly the NaN cells, so every
+  method ties at the ceiling and the curve is flat by construction.
