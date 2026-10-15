@@ -448,3 +448,66 @@ only strategies that learned anything were the ones that spread the budget
 **Implication for any next route:** the open problem is not better per-cell
 surprise. It is **column-level triage** — deciding where corruption plausibly
 lives before ranking cells inside it.
+
+---
+
+## 9. Wave 4 — reviewer gaps and two new mechanisms
+
+Triggered by external review (three gaps) plus two user proposals. Each route
+is falsifiable and reports losses.
+
+### The reviewer's gaps
+
+**G1 — the detection metric is not self-explanatory (high).** We quote 0.0025
+→ 0.0120 → 0.70 without stating the metric, and at 0.25 % prevalence a
+detector can look fine while missing almost everything. Needed: exact metric
+definitions, precision–recall curves, **per-column precision and recall**, and
+an explicit false-positive accounting.
+
+**G2 — the costs need a defensible interpretation (med-high).** The zero-regret
+result depends on one cost triple per dataset. If the advantage evaporates
+under modest changes the contribution is weak. Needed: cost-sensitivity
+sweeps, and a clear statement of whether costs are fixed, learned, or
+(critically) **selected using test outcomes** — they are fixed and come from
+`configs/costs.yaml`, never tuned on results, and that must be provable.
+
+**G3 — novelty is not established (high).** Every baseline we beat is one we
+wrote. `docs/literature.md` found published numbers but ran nothing. Needed:
+direct comparison against a published method on our data.
+
+### The two proposed mechanisms
+
+**M1 — difficulty-aware repair routing.** Measured in §3.5 of the report:
+
+| corruption | rule-based repairer | LLM |
+|---|---:|---:|
+| recoverable (out-of-range, format) | **100 %** | 92.5 % |
+| destroyed (missing) | 45 % | 50 % |
+
+The LLM is *worse where the answer is determined* and marginally better where
+it is a guess. So **route by difficulty**: deterministic repairs to the rule,
+genuinely ambiguous ones to the model. Upper bound if routing were perfect:
+~100 % on recoverable + ~50 % on destroyed, beating both pure strategies.
+This is the project's own thesis — decide what to trust — applied one level
+up, to *which repairer* to trust. Cheap to build, cheap to falsify.
+
+**M2 — column-level triage.** §8 showed the real failure: of the top 5,000
+scored cells on adult, **zero** are in the tampered column; the top is
+`native_country`, where rare-but-clean values are genuinely improbable. The
+model ranks well *within* a column and cannot tell *which column* to examine.
+Per-cell surprise is solved; column selection is not.
+
+### Routes
+
+- [ ] **W4.1 (research)** — how is column-level / attribute-level error
+      localisation solved in the literature? What signal separates "this
+      column contains unusual values" from "this column was tampered with"?
+      Also: which published system can we actually *run* on our data for G3?
+- [ ] **W4.2** — metric transparency: definitions, PR curves, per-column
+      precision/recall, false-positive accounting. Answers G1.
+- [ ] **W4.3** — cost-sensitivity sweep + proof that costs are fixed and
+      never selected on test outcomes. Answers G2.
+- [ ] **W4.4** — difficulty-aware repair routing. Implements M1.
+- [ ] **W4.5** — column triage implementation, informed by W4.1. Implements M2.
+
+W4.1–W4.4 run in parallel; W4.5 waits on W4.1.
