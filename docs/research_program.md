@@ -391,3 +391,60 @@ full = 0.7024.
 - One hyper-parameter setting per dataset; no sweep.
 - Smart Factory excluded: its corruption is exactly the NaN cells, so every
   method ties at the ceiling and the curve is flat by construction.
+
+
+---
+
+## 8. Why adult's overall PR-AUC stays low — measured, not inferred
+
+Earlier wording said the 14 untouched columns "drown out" the one corrupted
+column. That was wrong as a mechanism. Measured directly:
+
+| scored set | PR-AUC |
+|---|---:|
+| all 15 columns | **0.0123** |
+| `income` only | **0.6873** |
+| all 15, other 14 forced to score 0 | **0.6873** |
+
+The last two are identical, so **the entire loss is caused by the untouched
+columns and disappears if the detector is silent about them.** Extra clean
+columns do not dilute PR-AUC by existing; a low-scoring column costs nothing.
+
+### The real mechanism: displacement, not dilution
+
+**Of the top 5,000 scored cells, ZERO are in `income`.** The top 1,701 slots
+(the number of true corruptions) are held by:
+
+| column | cells in top 1,701 | true positives |
+|---|---:|---:|
+| `native_country` | 1,348 | 0 |
+| `occupation` | 343 | 0 |
+| `marital_status` | 8 | 0 |
+| `workclass` | 2 | 0 |
+| **`income`** | **0** | — |
+
+`native_country` is overwhelmingly "United-States", so a rare value is
+genuinely improbable given the row. The conditional model is *correct* that
+these cells are surprising. They are also completely clean.
+
+### The consequence for what we may claim
+
+The detector answers "which cells are surprising?" well. We wanted "which
+cells are corrupted". On adult those are different questions, and we only
+have the first.
+
+**The 0.6873 figure is partly oracle**: it requires knowing in advance that
+corruption is confined to `income`, which is ground-truth knowledge. It must
+never be quoted as an unaided detector result. The defensible claim is:
+
+> the conditional model ranks corruption well *within* a column, but cannot
+> tell which column is worth looking at.
+
+This also explains wave 3 exactly: `conditional_top` queried zero positives at
+every budget because the top of its ranking is all `native_country`, and the
+only strategies that learned anything were the ones that spread the budget
+*across* columns (`batch_diverse`, `per_column_quota`).
+
+**Implication for any next route:** the open problem is not better per-cell
+surprise. It is **column-level triage** — deciding where corruption plausibly
+lives before ranking cells inside it.
