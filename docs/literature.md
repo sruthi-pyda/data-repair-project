@@ -54,7 +54,7 @@ training split; **interactive** = active learning loop.
 | **Raha** | SIGMOD 2019, pp. 865–882 (DOI [10.1145/3299869.3324956](https://doi.org/10.1145/3299869.3324956)) | Runs a limited set of configurations of many base detection algorithms to build a feature vector per cell, then a sampling + classification scheme learns from very few labels. | **few labels** ("no more than 20 labeled tuples") |
 | **Baran** (*repair*, not detection) | PVLDB 13(12):1948–1961, 2020 ([PDF](http://www.vldb.org/pvldb/vol13/p1948-mahdavi.pdf)) | Trains incrementally-updatable value-based, vicinity-based and domain-based corrector models and ensembles their candidate corrections. | **few labels** (θ_Labels = 20) |
 | **HoloDetect** | SIGMOD 2019 ([PDF](http://www.holoclean.io/files/misc/detection.pdf), [arXiv 1904.02285](https://arxiv.org/abs/1904.02285)) | Learns a representation of attribute / tuple / dataset context, then uses weakly-supervised learned augmentation policies to synthesise errors and train a classifier; output calibrated with Platt scaling. | **full** split (5–10 %) + weak supervision |
-| **ED2** | as used in REIN / SAGED | Extracts attribute-, tuple- and dataset-level features and uses active learning to request labels for cells the classifier is uncertain about. | **interactive** (active learning) |
+| **ED2** | as used in REIN / SAGED | Extracts attribute-, tuple- and dataset-level features and uses active learning to request labels for cells the classifier is uncertain about. **Contains a component literally named the *Column Selector*** — see the correction below. | **interactive** (active learning) |
 | **Picket** | VLDB J 31(5):927–955, 2022 ([arXiv 2006.04730](https://arxiv.org/abs/2006.04730)) | Self-supervised multi-head-attention transformer (PicketNet) over mixed-type tabular data; flags cells by reconstruction loss, at both training and inference time. | **none** (self-supervised) |
 | **AimNet** | MLSys 2020 ([PDF](https://cs.uwaterloo.ca/~ilyas/papers/WuMLSys2020.pdf)) | Dot-product attention over the *other* attributes of the row (attention weights depend on attributes, not target values) acting as a hybrid denoising autoencoder for imputation. | **none** (self-supervised) |
 | **Min-k / Max-Entropy** | 2016; as used in REIN | Ensembles non-learning detectors: Min-k flags a cell found by ≥ k methods; Max-Entropy uses entropy-based sampling to order the detectors. | **config** (hyperparams) |
@@ -573,3 +573,47 @@ Selective prediction / conformal (the machinery our decision layer imports):
   order-of-magnitude argument, not a measurement. **R0's harness must measure it.**
 - Raha's clustering / label-propagation mechanism is described as REIN characterises it;
   the Raha paper itself was unreachable (403).
+
+
+---
+
+## CORRECTION (added after `docs/column_triage_research.md`, W4.1)
+
+**ED2 already does column selection, and we must not claim it.** ED2 (CIKM
+2019) contains a component literally called the **Column Selector**, which
+chooses which column to request labels for next. Its four criteria are:
+
+| criterion | what it does | ED2's own verdict |
+|---|---|---|
+| **Min Certainty** (default) | average classifier certainty per column | **most stable** |
+| **Max Error** | lowest per-column cross-validated F1 | **gets stuck in local optima** |
+| Max Prediction Change | largest change in predictions | gets stuck in local optima |
+| Random / Round-Robin | controls | — |
+
+**Max Error is exactly the "predictability shift" mechanism** we had listed as
+our most promising column-triage idea in `docs/research_program.md` §9 (M2).
+It is prior art, and ED2 further reports it is the *unstable* choice. Two
+consequences:
+
+1. Any column-triage route **cannot claim novelty for predictability-based
+   column selection**, and must cite and benchmark against ED2's four criteria.
+2. We would have walked into a documented failure mode. ED2's finding that
+   certainty beats error-rate for this purpose should inform the design
+   before we build anything.
+
+**A second correction to this document's framing.** §"Is our decision layer
+novel?" concluded that measuring calibration is novel. That stands, but a
+further prior art was missed: **selective editing** in official statistics
+(Hidiroglou & Berthelot 1986 onward) already performs cost-weighted triage —
+a local score per variable, a global score per unit, a threshold, then human
+review, with the US Census trade score being literally *suspicion × influence
+on published totals*. It supports our framing but is prior art and must be
+cited rather than reinvented.
+
+**And a formal correction to our method, not just our claims.** Our per-cell
+statistic `1 − P(value | row)` is a **density**, and Ren et al. (*Likelihood
+Ratios for OOD Detection*, NeurIPS 2019) show density is confounded by
+population-level background statistics. The correct statistic is a
+**likelihood ratio** against a background model. See
+`docs/column_triage_research.md` §2 and `docs/research_program.md` for the
+measured consequence on adult.
