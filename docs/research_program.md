@@ -511,3 +511,61 @@ Per-cell surprise is solved; column selection is not.
 - [ ] **W4.5** — column triage implementation, informed by W4.1. Implements M2.
 
 W4.1–W4.4 run in parallel; W4.5 waits on W4.1.
+
+
+---
+
+## 10. The likelihood-ratio fix was REFUTED (pre-registered test)
+
+W4.1's central finding was that our statistic `1 − P(x | row)` is a *density*,
+and Ren et al. (NeurIPS 2019) show the correct statistic is a **likelihood
+ratio** against a background model. We pre-registered the refutation condition
+in `experiments/w4_ratio_test.py` before running it: *refuted if the top 1,701
+ratio-scored cells contain zero `income` cells.*
+
+| mode | PR-AUC all | PR-AUC on `income` | ROC all | `income` in top-1,701 | dominant column |
+|---|---:|---:|---:|---:|---|
+| `full` (density) | 0.0123 | **0.6873** | 0.8869 | **0** | `native_country` (1,348) |
+| `marginal` | 0.0085 | 0.1318 | 0.7162 | **0** | `native_country` (1,490) |
+| `ratio` | 0.0081 | 0.4895 | 0.7890 | **0** | `occupation` (949) |
+
+**Refuted.** No mode places a single tampered cell in the top 1,701.
+
+### What the ratio *did* do, and why it still failed
+
+The theory predicted correctly as far as it went: the ratio **de-emphasised
+`native_country`**, the column whose background distribution is most extreme
+(dominated by "United-States"). That is exactly the confound Ren et al.
+describe, and the ratio removed it.
+
+It then handed the top of the ranking to `occupation` instead.
+
+**Diagnosis — the ratio is biased by cardinality.** `income` is **binary**:
+with two categories the marginal is ≈ 0.25/0.75, so even a confidently wrong
+conditional prediction yields a *bounded* ratio. `occupation` has ~14
+categories, so moderate marginals combine with small conditionals to produce
+much larger ratios. A binary column **cannot** compete on this statistic no
+matter how badly corrupted it is. The ratio is not comparable across columns
+of different cardinality.
+
+The ratio is also worse *within* the target column (0.4895 vs the density's
+0.6873), so it is not a free swap even where it is applicable.
+
+### What this implies
+
+1. **The honest claim stands and is now backed by a pre-registered test:**
+   per-cell surprise is solved (0.6873 inside the right column); locating a
+   valid-to-valid corruption from the dirty table alone is not. This agrees
+   with W4.1's hard constraint — no published system does it without
+   importing outside information (a column corpus, a table corpus, labels,
+   or a cost model).
+2. **The cheap next test is per-column score normalisation**, not a better
+   background model. If each column's scores are standardised to a common
+   scale (rank or z-score within column), the top-k would draw across columns
+   instead of being captured by whichever column has the highest cardinality.
+   That does not *identify* the corrupted column — it only stops high-
+   cardinality columns from monopolising the ranking — but it is one cheap
+   run and it is falsifiable the same way.
+3. **Do not report `ratio` as an improvement anywhere.** It is worse on every
+   metric we measured except its intended de-confounding effect, which it
+   achieved without benefit.
