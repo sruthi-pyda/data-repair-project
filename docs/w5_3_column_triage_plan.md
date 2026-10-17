@@ -98,14 +98,51 @@ type, it is declared circular and reported as a negative result.** In
 deployment the true type is unknown, so a probe that needs to match it is
 worthless.
 
+## 5b. The negative-set confound — pre-registered, and why both are reported
+
+The probe plants cells in a column and asks how well they separate from the
+column's **other** cells. If the column is already corrupted, those other
+cells contain **genuine** corruptions, which the detector scores high. That
+drags the AUC down for a reason that has nothing to do with H1: the negative
+class is contaminated, not the model degraded.
+
+This matters enough to fix the interpretation in advance, because it is a
+second mechanism that would make H1 appear to pass:
+
+- **(i) deployable AUC** — negatives are *all* non-planted cells in the
+  column. Uses **zero labels**. This is the only version that could ever run
+  in deployment, so **this is the version the falsification conditions in §6
+  are evaluated on.**
+- **(ii) mechanism AUC** — negatives restricted to cells known to be
+  genuinely clean. **Uses labels, is therefore NOT deployable**, and exists
+  only to say which mechanism is driving the result.
+
+Reading the pair:
+
+| (i) | (ii) | conclusion |
+|---|---|---|
+| passes | passes | H1 as stated: the column's model really is degraded |
+| passes | fails | the probe **works but for a different reason** — negative-set contamination. Still a usable triage signal; H1 itself is unsupported and must not be claimed |
+| fails | — | the probe does not work |
+
+A deployable probe that works via contamination is still a deployable probe,
+so (i) governs utility. But the paper may only claim the *mechanism* H1
+describes if (ii) also holds. Conflating the two would be the easiest way to
+overclaim here, which is why the distinction is written down before the run.
+
 ## 6. Falsification conditions — FIXED BEFORE RUNNING
 
 Ground-truth corrupted columns per dataset are derived from `cell_labels`
 (evaluation-only use, permitted by §3). Chance for a single corrupted column
 among `n` columns is a uniform rank, expectation `(n+1)/2`.
 
-- **F1** — refuted on a dataset if the truly-corrupted columns mean rank
-  under `t` is **no better than** the chance expectation.
+Headline metric is the **column-level AUC**: rank all columns by `t` and
+measure how well that separates truly-corrupted columns from clean ones.
+Chance is 0.5. This handles datasets with several corrupted columns, which a
+single rank does not. Evaluated on the **deployable** AUC (i) of §5b.
+
+- **F1** — refuted on a dataset if the column-level AUC is **<= 0.5**,
+  i.e. no better than ordering the columns at random.
 - **F2** — refuted on adult if `income` is **not in the top 5** of 15
   columns. (Chance of top-5 is 1/3, so clearing F2 is weak evidence on its
   own; it is a necessary condition, not a sufficient one.)
