@@ -130,6 +130,30 @@ so (i) governs utility. But the paper may only claim the *mechanism* H1
 describes if (ii) also holds. Conflating the two would be the easiest way to
 overclaim here, which is why the distinction is written down before the run.
 
+## 5c. Where this is even testable — measured before running the probe
+
+A column-level AUC needs both corrupted **and** clean columns. The census
+(`cell_labels`, full datasets):
+
+| dataset | columns | corrupted | clean | column triage testable? |
+|---|---:|---:|---:|---|
+| adult | 15 | **1** (`income`, 1,701 cells) | 14 | **yes — well posed** |
+| smartfactory | 19 | 18 | 1 (`labels`) | barely: 18 vs 1, the AUC reduces to "where does `labels` rank" |
+| breast_cancer | 12 | **12** | **0** | **no — single class, AUC undefined** |
+
+So the probe can only really be *evaluated* on **adult** — which is exactly
+the dataset where the detector is blind, so it is also the dataset where
+triage would matter most. breast_cancer reports no column-level AUC at all
+(the code returns `None`; it does not invent one), and smartfactory's is
+reported with the 18-vs-1 caveat attached every time it appears.
+
+This is worth stating in the paper rather than hiding: it is another
+instance of reviewer **gap 3** (one genuinely useful dataset). It also means
+F1/F4 are single-dataset tests, so a pass is suggestive and nothing more.
+The per-column `d_c` values on the other two datasets are still reported,
+because they show whether a probe type saturates — a type whose `d_c` is
+~1.0 everywhere carries no column signal by construction.
+
 ## 6. Falsification conditions — FIXED BEFORE RUNNING
 
 Ground-truth corrupted columns per dataset are derived from `cell_labels`
