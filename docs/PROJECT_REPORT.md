@@ -380,6 +380,114 @@ are surprising — they are also completely clean.
 
 ---
 
+## 8b. Wave 4 — answering external review
+
+An external reviewer raised three gaps; two further mechanisms were proposed.
+
+### G2 — are the costs defensible? **Yes, and the headline is robust**
+
+Realised cost is homogeneous of degree 1 in the costs, so the decision
+boundaries depend only on two *ratios*. Sweeping those on a grid:
+
+| dataset | best or tied | **strictly best** | worst regret |
+|---|---:|---:|---:|
+| Adult | 100.0 % | **0.0 %** | 0.00 % |
+| Breast Cancer | 96.5 % | **57.9 %** | 4.68 % |
+| Smart Factory | 98.5 % | **2.9 %** | 0.65 % |
+
+The zero-regret claim is **not knife-edge** — where it loses it loses by
+single-digit percentages in narrow slivers. **But read the second column:**
+Adult's 100 % is 100 % *ties* with always-abstain, and Smart Factory is mostly
+tied with always-human. Robustness and superiority are different claims.
+
+Provenance is proved four ways: the costs are frozen dataclasses read from
+`configs/costs.yaml`; no optimiser touches them; and the one historical
+exception is stated openly — Adult's `c_leave_error` was hand-set to 1 and
+**reverted to 5 one commit later**. Validation: 0 mismatches against
+`DecisionPolicy.decide` over every record × 13 cost configs.
+
+### M1 — difficulty-aware repair routing. **Works, but not as expected**
+
+The LLM is worse where answers are determined (92.5 % vs the rule's 100 %) and
+marginally better where they are guesses. So route by difficulty:
+
+| approach | accuracy | model calls | policy cost |
+|---|---:|---:|---:|
+| Rule only | 67.3 % | 0 | **1,615** |
+| LLM only | 71.0 % | 355 | 1,670 |
+| **Routed by error type** | **71.0 %** | **210** | 1,680 |
+| Oracle (upper bound) | 77.7 % | 355 | 1,775 |
+
+**Routing matches the LLM's accuracy with 41 % fewer model calls** — the
+practical win. It does not beat the LLM on accuracy or the rule on cost.
+
+**The sharpest finding in the project:** *better repair accuracy produces worse
+policy cost.* The least accurate method is cheapest; the oracle is most
+accurate and most expensive. Better repairs raise `p`, more cells auto-repair,
+and a wrong auto-repair costs 50 against human review's 5. The LLM did not
+fail — it succeeded at the wrong objective.
+
+Also exposed a concrete bug: `by_error_type` sends `NOVEL_CATEGORY` to the
+rule as "recoverable", scoring 30.8 % where the LLM scores 84.6 %.
+
+### M2 — column triage. **Research reframed it; the proposed fix was refuted**
+
+Three findings from the literature route:
+
+1. **The problem is named** — *error localisation* (Fellegi–Holt, JASA 1976,
+   still deployed by national statistical agencies), *cellwise outlier
+   detection* (Technometrics 2018), *error attribution* (SIGMOD 2015).
+2. **Our statistic is formally wrong.** `1 − P(x | row)` is a **density**, and
+   Ren et al. (*Likelihood Ratios for OOD Detection*, NeurIPS 2019) show
+   density is confounded by background statistics; the correct statistic is a
+   **likelihood ratio**. That is exactly our `native_country` failure, named
+   and solved in another field.
+3. **Novelty correction:** ED2 (CIKM 2019) already contains a component called
+   the **Column Selector**, whose *Max Error* criterion is the
+   predictability-shift idea we were about to claim — and ED2 reports it gets
+   stuck in local optima. We would have claimed known prior art *and* walked
+   into a documented failure mode.
+
+**The ratio fix was then tested and REFUTED**, against a condition registered
+before the run (`experiments/w4_ratio_test.py`):
+
+| mode | PR-AUC all | PR-AUC on `income` | `income` in top 1,701 | dominant column |
+|---|---:|---:|---:|---|
+| density (current) | 0.0123 | **0.6873** | **0** | `native_country` |
+| marginal | 0.0085 | 0.1318 | **0** | `native_country` |
+| likelihood ratio | 0.0081 | 0.4895 | **0** | `occupation` |
+
+The theory was right as far as it went — the ratio **did** de-emphasise
+`native_country`, the most background-skewed column. It then handed the top to
+`occupation`.
+
+**Diagnosis: the ratio is biased by cardinality.** `income` is binary, so even
+a confidently wrong prediction gives a *bounded* ratio; a 14-category column
+produces far larger ones. **A binary column cannot compete on this statistic
+however badly corrupted it is.** The density favours the most skewed column;
+the ratio favours the highest-cardinality one. Neither is asking about
+corruption.
+
+### G3 — novelty. **Now closable, not yet closed**
+
+`Raha` (SIGMOD Most Reproducible Paper Award, last commit 2025-06-05) installs
+with `pip install raha`, and its dataset dictionary is `{name, path,
+clean_path}` — **our `datasets/<name>/{dirty,clean}.csv` layout verbatim**.
+REIN ships a runnable harness wrapping eleven detectors. **Not yet run**: this
+remains the project's largest open gap.
+
+### G1 — metric transparency
+
+`docs/metrics_definitions.md` gives the exact definition of every metric we
+report, states that **PR-AUC is primary and a constant scorer achieves
+PR-AUC = prevalence** (so Adult's 0.0025 is the *floor*, not a score), and
+shows why accuracy misleads at 0.25 % prevalence — a detector flagging nothing
+scores 99.75 % accuracy on Adult. Per-column precision/recall and
+false-positive accounting tables are generated by
+`experiments/w4_metrics.py`.
+
+---
+
 ## 9. Reproducing any number
 
 ```bash
