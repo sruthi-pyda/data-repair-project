@@ -1,0 +1,33 @@
+{
+  "labeling_budget": 20,
+  "results": {
+    "breast_cancer": {
+      "precision": 1.0,
+      "recall": 0.020602218700475437,
+      "f1": 0.040372670807453416,
+      "n_flagged": 13,
+      "seconds": 1.9
+    },
+    "hospital": {
+      "precision": 0.6712962962962963,
+      "recall": 0.28487229862475444,
+      "f1": 0.4,
+      "n_flagged": 216,
+      "seconds": 14.0
+    },
+    "rayyan": {
+      "precision": 0.6758938869665513,
+      "recall": 0.6181434599156118,
+      "f1": 0.6457300275482093,
+      "n_flagged": 867,
+      "seconds": 6.4
+    },
+    "beers": {
+      "precision": 0.9739445910290238,
+      "recall": 0.676983035304906,
+      "f1": 0.7987557479037056,
+      "n_flagged": 3032,
+      "seconds": 8.1
+    }
+  }
+}
