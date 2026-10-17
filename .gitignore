@@ -53,3 +53,6 @@ coverage.xml
 
 # LLM response cache (Phase 12)
 .cache/
+
+# PowerPoint lock files
+~$*
