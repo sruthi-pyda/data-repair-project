@@ -569,3 +569,85 @@ The ratio is also worse *within* the target column (0.4895 vs the density's
 3. **Do not report `ratio` as an improvement anywhere.** It is worse on every
    metric we measured except its intended de-confounding effect, which it
    achieved without benefit.
+
+---
+
+## 11. Wave 5 — the four remaining gaps
+
+Second external review. Assessment by (value / effort) and what each needs.
+
+### Gap 4 — incomplete costs + unablated clean-data knowledge. **Cheapest, do first**
+
+Two separate problems, both one experiment each:
+
+**4a. Undetected corruptions are priced at zero.** Adult excludes all 1,701
+injected errors; Breast Cancer excludes 276. Every cost figure therefore
+describes the *flagged* cells, not total data-quality harm. **Fix:** add a
+second costing mode that charges `C_abstain` for every genuinely corrupted
+cell the detector never flagged, and report both. This does not replace the
+current number — a policy cannot be blamed for a cell it never saw — but
+total harm is the number a practitioner cares about, and omitting it flatters
+every method equally while hiding how little of the problem we touch.
+
+**4b. `DatasetProfile` is built from `clean_df`.** Detector fences, valid
+ranges, vocabularies and imputation statistics all carry population-level
+clean knowledge. CLAUDE.md §3 has flagged this since day one and named the
+resolution: *an ablation computing those statistics from dirty data and
+reporting the gap.* It has never been run. **Fix:** run it. If the gap is
+small the caveat is closed; if it is large, that is a finding we need before
+the paper, not after.
+
+### Gap 1 — no external benchmark. **Biggest gap, clear path**
+
+W4.1 established the install path and that Raha's dataset dictionary is
+`{name, path, clean_path}` — our layout verbatim. Needs a separate venv
+(`raha` pins `pandas==2.1.0`; we are on 2.3). **Fix:** run Raha at a 20-label
+budget on all three datasets, report P/R/F1 beside ours *on the same cells
+and the same corruption*, and state plainly where it beats us.
+
+### Gap 2 — column triage. **Hardest; needs a hypothesis, not a heuristic**
+
+The reviewer is right that predictability, rarity and cardinality each failed,
+and that the answer is not another untested heuristic. The principled position
+comes from W4.1's hard constraint: **no published system separates
+rare-but-valid from corrupted using one table and no labels.** Every deployed
+method imports a reference — a column corpus, a table corpus, labels, or a
+cost model.
+
+So there are exactly two honest moves:
+
+1. **Test the one self-contained reference available: synthetic corruption.**
+   Inject known corruption into each column and measure how the detector's
+   behaviour changes. A column that is *already* corrupted should respond
+   *less*, because its baseline is already polluted. W4.1 flagged that the
+   sign of this effect is an assumption, not a theorem — so it is
+   pre-registered and falsifiable exactly as the likelihood-ratio test was.
+   Circularity is the risk and must be controlled: the injected corruption
+   policy must differ from the one that produced the dataset.
+2. **Accept labels and spend them on columns.** Wave 3 already showed
+   per-column allocation is the only sampler that learns on adult. ED2's
+   Column Selector is prior art and must be benchmarked against, not
+   reinvented.
+
+If (1) fails, the paper's claim becomes a measured impossibility result rather
+than a missing feature — which is publishable and honest.
+
+### Gap 3 — one useful dataset. **Needs a decision from the user**
+
+Smart Factory tests trivially-detectable missingness; Adult's whole-table
+detector is weak; Breast Cancer is the only dataset exercising the full
+pipeline across corruption types. Options, in order of strength:
+
+- **More REIN datasets** (Beers, Flights, Hospital, Movies, Rayyan, Tax are
+  standard) — strongest, needs the user to supply or point at them.
+- **Controlled corruption study**: take clean data and inject corruption at
+  varied types and rates, measuring how performance moves with each.
+  Self-contained, but risks circularity and tests generalisation across
+  *corruption*, not across *domains*.
+
+### Order
+
+- [ ] W5.1 Gap 4a + 4b (cheapest, longest overdue)
+- [ ] W5.2 Gap 1 — Raha
+- [ ] W5.3 Gap 2 — pre-registered injection test
+- [ ] W5.4 Gap 3 — pending the user's decision on datasets
