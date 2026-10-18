@@ -285,6 +285,27 @@ def probe_dataset(
             det = ConditionalDetector(mode="full", seed=SEED).fit(injected)
             sc = det.score_cells(injected)[c].to_numpy(dtype=float)
 
+            # A column the detector SKIPS (ID-like) scores all-zero, so its
+            # AUC is exactly 0.5 — and since t = -d, that 0.5 would rank it
+            # as the MOST suspicious column in the table. It is an absence
+            # of measurement, not a measurement, so it is excluded, the same
+            # way this project reports `—` rather than 0.0 for undefined.
+            # Observed on breast_cancer: `Unnamed: 0` and `Sample code
+            # number` both sat at exactly d = 0.5000 and took the top two
+            # triage ranks for every probe type.
+            n_distinct = int(np.unique(sc).size)
+            if n_distinct <= 1:
+                probes.append(
+                    ColumnProbe(c, c in corrupted_cols, genuine[c],
+                                len(planted_rows), None, None,
+                                "detector skips this column "
+                                f"(constant score {sc[0]:.3g})")
+                )
+                if verbose:
+                    print(f"    {c:<22} skipped by detector "
+                          f"(constant score)")
+                continue
+
             planted = np.zeros(len(injected), dtype=bool)
             planted[np.asarray(planted_rows, dtype=int)] = True
             gen = labels[c].to_numpy().astype(bool)
