@@ -659,8 +659,46 @@ pipeline across corruption types. Options, in order of strength:
       0.4000 / 0.6457 / 0.7988. We win 1 of 4, not 3 of 4. The detector is
       not better than Raha, it is differently informed.
 - [x] **W5.4** Gap 3 — nine-dataset cross-domain run, `results/w5_cross_domain.md`
-- [ ] **W5.3** Gap 2 — pre-registered injection test for column triage.
-      Plan: `docs/w5_3_column_triage_plan.md` (committed before the code).
+- [x] **W5.3** Gap 2 — pre-registered injection test for column triage.
+      **REFUTED.** Plan `docs/w5_3_column_triage_plan.md` (committed before
+      the code); results `results/w5_column_triage.md` and
+      `results/w5_column_triage_control.md`.
+
       Census first: triage is only well posed on **adult** (1 of 15 columns
-      corrupted); breast_cancer has 12 of 12 so the column-level AUC does not
+      corrupted); breast_cancer is 12 of 12 so the column-level AUC does not
       exist, and smartfactory is 18 of 19.
+
+      On adult, three of four probe types land at or below chance, and the
+      type that *matches* adult's true corruption (`swap_valid`) scores
+      **0.3077** with `income` 10th of 14 — planted corruption was *easier*
+      to find in the corrupted column, the opposite of H1.
+
+      The one apparent success, `out_of_range` at a **perfect** column-AUC of
+      1.0000, is a **cardinality confound** and is withdrawn. `income` is
+      encoded 0/1, so the corruptor plants -50 and 51 into it; a
+      squared-error learner chases those extremes and predicts them *better*
+      than ordinary 0/1 cells, giving a spuriously low `d`. The control
+      proves it:
+
+      | | d |
+      |---|---:|
+      | `income` corrupted | 0.2356 |
+      | `income` with clean values substituted | 0.4722 |
+      | clean numeric columns (16-76 distinct values) | 0.9874 |
+
+      A *clean* `income` still scores far below every clean continuous
+      column, so it would have ranked first **with no corruption in it at
+      all**. The residual gap of -0.2367 is a genuine H1 effect with
+      cardinality held fixed and its sign is the predicted one, but it is
+      unusable: obtaining `d_clean` needs exactly the ground truth the probe
+      exists to avoid. A deployable version would need cardinality-matched
+      normalisation, which this does not have.
+
+      **So Gap 2 closes as a measured impossibility, not a missing feature**
+      — which is what `docs/literature.md` anticipated: no published system
+      separates rare-but-valid from corrupted using one table and no labels.
+      Two method bugs were found and fixed en route, both by reading output
+      rather than trusting it: detector-skipped ID columns scored a constant
+      d = 0.5000 and so took the *top* triage ranks (since `t = -d`), and
+      undefined AUCs were printed as `REFUTED`, conflating "never measured"
+      with "measured and failed".
