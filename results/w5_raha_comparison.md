@@ -24,7 +24,54 @@ single (P, R) pair — directly comparable to Raha's. **No oracle threshold is
 used in this table**; quoting our best-F1 here would have compared our best
 possible threshold against Raha's actual one.
 
-## Reading this honestly
+## SETTLED, AND IT REVERSES THE CONCLUSION
+
+**Read this before the table above.** The caveat this document originally
+flagged as unsettled has now been measured
+(`results/w5_raha_leakage_check.md`, W5.2b), and it does not survive.
+
+Our detector's valid ranges, vocabularies and IQR fences come from
+`DatasetProfile`, built from `clean_df`. Recomputing the identical
+operating point with **every profile statistic derived from dirty data** —
+no clean data of any kind — gives:
+
+| dataset | ours F1 (clean profile) | **ours F1 (zero knowledge)** | Raha F1 (20 labels) | winner |
+|---|---:|---:|---:|---|
+| breast_cancer | 0.7664 | **0.6327** | 0.0404 | ours |
+| hospital | 0.9271 | **0.0000** | 0.4000 | **Raha** |
+| rayyan | 0.3702 | **0.0558** | 0.6457 | **Raha** |
+| beers | 0.8622 | **0.0558** | 0.7988 | **Raha** |
+
+**We go from winning three of four to losing three of four.** On hospital
+the detector flags **zero cells**. The mechanism is not mysterious: the
+novel-category and valid-range checks are *definitionally* comparisons
+against a known-good vocabulary or range. Build that vocabulary from dirty
+data and the corrupted values are inside it, so the check can never fire.
+
+### What the honest claim is
+
+The ordering is monotone in how much information each configuration gets:
+
+| configuration | labels | clean aggregate knowledge | F1 on beers |
+|---|---|---|---:|
+| ours, dirty profile | 0 | none | 0.0558 |
+| Raha | 20 | none | 0.7988 |
+| ours, clean profile | 0 | full distributional | 0.8622 |
+
+So the correct statement is **not** "we beat Raha". It is: *our detector is
+not better than Raha, it is differently informed.* Its zero-label claim was
+true but misleading — zero labels is not zero knowledge, and the clean profile
+is plausibly a larger advantage than twenty labelled cells. Under
+comparable ignorance our rule detector is substantially worse than a
+published method.
+
+This is the single most consequential negative result in Wave 5 and it must
+go in the paper as such. It does **not** touch the decision-layer claim:
+`results/w5_leakage_ablation.md` shows zero worst-case regret holds under
+both profiles. What it removes is any claim to a competitive *detector*.
+
+## Reading the original numbers
+
 
 **We win three of four, and Raha wins rayyan** — the dataset our cross-domain
 run already flagged as an undiagnosed failure (lift 2.1x at 8.62 %
@@ -33,13 +80,12 @@ detector is missing on rayyan, a published method finds it.
 
 **We use zero labels; Raha uses twenty.** On the face of it that favours us.
 
-**But we are not truly label-free, and this is the caveat that matters most.**
+**But we are not truly label-free — and the section above now shows this is decisive, not a caveat.**
 Our detector's valid ranges, vocabularies and IQR fences come from
 `DatasetProfile`, which is built from `clean_df` (CLAUDE.md §3). That is
 population-level knowledge of the clean data — a different and arguably
-larger advantage than Raha's 20 labelled cells. **Until the leakage ablation
-(W5.1b) is run, this comparison is not settled**, and no claim of superiority
-should be made from this table alone.
+larger advantage than Raha's 20 labelled cells. It has now been run, and the
+superiority claim does not survive it — see the top of this document.
 
 **Raha's breast_cancer result looks anomalous.** It flagged only 13 cells out
 of 8,388 (recall 0.021) on a dataset with 7.5 % prevalence. That is far below
