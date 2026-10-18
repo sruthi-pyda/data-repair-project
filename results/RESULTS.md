@@ -11,6 +11,32 @@ Not money, not clinical harm, not supplied by the REIN benchmark.
 
 ---
 
+## 0. Read this first — the soft-leakage result (W5.1b / W5.2b)
+
+Every detection and repair number in this document is produced with
+`DatasetProfile` built from `clean_df`, so the detector's IQR fences, valid
+ranges and vocabularies — and the repairer's imputation medians — are derived
+from clean aggregate statistics. That has now been ablated
+(`results/w5_leakage_ablation.md`, `results/w5_raha_leakage_check.md`).
+
+**The headline result in §1 survives: zero worst-case regret holds under both
+clean and dirty profiling.** The decision layer is what this project
+contributes, and it does not depend on the leakage.
+
+**The detection numbers do not survive.** breast_cancer PR-AUC falls
+0.6712 → 0.5224 with disjoint CIs and its repair top-1 falls 0.673 → 0.506;
+hospital goes to *zero* flags; rayyan and beers collapse to F1 0.0558. adult
+and smartfactory are unaffected, for mechanical reasons given in `CLAUDE.md`
+§3. Consequently our reported win over Raha reverses on a zero-knowledge
+basis — see `results/w5_raha_comparison.md`, whose conclusion is corrected at
+the top.
+
+So: cite §1 freely. Never cite a detection number from this document without
+the dirty-profile figure beside it, and never call the detector "label-free"
+without adding "but not clean-free".
+
+---
+
 ## 1. The headline result
 
 No fixed policy is good on all three datasets. The adaptive one is.

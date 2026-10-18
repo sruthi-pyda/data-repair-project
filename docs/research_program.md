@@ -647,7 +647,20 @@ pipeline across corruption types. Options, in order of strength:
 
 ### Order
 
-- [ ] W5.1 Gap 4a + 4b (cheapest, longest overdue)
-- [ ] W5.2 Gap 1 — Raha
-- [ ] W5.3 Gap 2 — pre-registered injection test
-- [ ] W5.4 Gap 3 — pending the user's decision on datasets
+- [x] **W5.1a** complete costing incl. undetected errors — `results/w5_complete_costs.md`
+- [x] **W5.1b** soft-leakage ablation — `results/w5_leakage_ablation.md`.
+      **Material**: breast_cancer PR-AUC −0.1488 (disjoint CIs), repair top-1
+      −0.167; adult and smartfactory exactly 0. Zero worst-case regret holds
+      in **both** arms, so the decision-layer claim is untouched.
+- [x] **W5.2** Gap 1 — Raha run on our data, `results/w5_raha_comparison.md`
+- [x] **W5.2b** leakage check on the Raha datasets —
+      `results/w5_raha_leakage_check.md`. **Reverses W5.2**: zero-knowledge
+      F1 gives hospital 0.0000, rayyan 0.0558, beers 0.0558 against Raha's
+      0.4000 / 0.6457 / 0.7988. We win 1 of 4, not 3 of 4. The detector is
+      not better than Raha, it is differently informed.
+- [x] **W5.4** Gap 3 — nine-dataset cross-domain run, `results/w5_cross_domain.md`
+- [ ] **W5.3** Gap 2 — pre-registered injection test for column triage.
+      Plan: `docs/w5_3_column_triage_plan.md` (committed before the code).
+      Census first: triage is only well posed on **adult** (1 of 15 columns
+      corrupted); breast_cancer has 12 of 12 so the column-level AUC does not
+      exist, and smartfactory is 18 of 19.
