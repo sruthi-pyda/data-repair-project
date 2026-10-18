@@ -193,9 +193,18 @@ suggestive, not established.
 
 ## 8. Tasks
 
-- [ ] Commit this plan before writing any experiment code
-- [ ] `experiments/w5_column_triage.py` — the probe, all types x rates
-- [ ] Ground-truth corrupted-column census per dataset
-- [ ] Column-mean-score baseline (F4)
-- [ ] Evaluate F1-F4, write `results/w5_column_triage.md`
+- [x] Commit this plan before writing any experiment code
+- [x] `experiments/w5_column_triage.py` — the probe, all four types
+- [x] Ground-truth corrupted-column census per dataset (§5c — it narrowed
+      the evaluation to adult alone)
+- [x] Column-mean-score baseline (F4) — 0.7143 on adult
+- [x] Evaluate F1-F4 — `results/w5_column_triage.md` (adult),
+      `results/w5_column_triage_breast_cancer.md` (no verdict possible)
+- [x] **Unplanned but necessary**: exclude detector-skipped columns, whose
+      constant scores give AUC exactly 0.5000 and so took the top triage
+      ranks on breast_cancer for every probe type
+- [x] **Unplanned but necessary**: the cardinality control,
+      `experiments/w5_column_triage_control.py` — adult's `income` is 0/1,
+      so the one F1 pass had to be tested against a clean counterfactual
+      before it could be believed
 - [ ] Record the verdict in `docs/research_program.md`, pass or fail
