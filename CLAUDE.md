@@ -138,13 +138,46 @@ parameter by construction.
 There are existing tests asserting no-leakage. Keep them passing and add equivalents
 for any new module.
 
-**Known soft-leakage caveat (document, don't silently "fix"):** `DatasetProfile` is
-built from `clean_df`, so detector IQR fences / valid ranges / vocabularies, and the
-repairer's imputation medians and quartiles, are derived from clean aggregate
-statistics. The code documents this as acceptable population-level schema knowledge.
-A reviewer will challenge it. Preferred resolution is an ablation computing those
-stats from dirty data and reporting the gap — not a quiet code change that
-invalidates already-reported numbers.
+**Soft-leakage caveat — MEASURED, and it is the most consequential negative
+result in the project.** `DatasetProfile` is built from `clean_df`, so detector
+IQR fences / valid ranges / vocabularies, and the repairer's imputation medians
+and quartiles, are derived from clean aggregate statistics. The ablation this
+section used to ask for has been run — `experiments/w5_leakage_ablation.py` and
+`experiments/w5_raha_leakage_check.py`, results in
+`results/w5_leakage_ablation.md` and `results/w5_raha_leakage_check.md`. Neither
+touches a shipped code path; both profile from dirty data in a second, clearly
+labelled arm, and both verify the patch took effect rather than trusting it.
+
+The gap is **large wherever the detector's rules are vocabulary- or
+range-comparisons**, and exactly zero where they are not:
+
+| dataset | clean profile | dirty profile | effect |
+|---|---|---|---|
+| adult | PR-AUC 0.0025 | 0.0025 | none — the only corrupted column is categorical, so no numeric quartile moves |
+| smartfactory | PR-AUC 1.0000 | 1.0000 | none — outlier flagging is off, and the missing-token rule reads no statistics |
+| breast_cancer | PR-AUC 0.6712 | **0.5224** | −0.1488, CIs disjoint; repair top-1 0.673 → 0.506 |
+| hospital | F1 0.9271 | **0.0000** | flags *zero* cells |
+| rayyan | F1 0.3702 | **0.0558** | collapse |
+| beers | F1 0.8622 | **0.0558** | collapse |
+
+The mechanism is definitional, not incidental: the novel-category and
+valid-range checks *are* comparisons against a known-good vocabulary or range.
+Build that vocabulary from dirty data and the corrupted values are already
+inside it, so the check can never fire.
+
+**Consequences you must respect when writing anything:**
+
+1. **Never describe the detector as "label-free" without saying "but not
+   clean-free".** Zero labels is not zero knowledge, and a full clean profile is
+   plausibly a larger advantage than the 20 labelled cells Raha uses.
+2. **The win over Raha does not survive this.** On a zero-knowledge basis we
+   lose hospital, rayyan and beers and keep only breast_cancer. See
+   `results/w5_raha_comparison.md`, whose conclusion is reversed at the top.
+3. **The decision-layer claim is untouched.** Zero worst-case regret holds under
+   *both* profiles. That is the paper's actual contribution and it survives.
+4. Quote clean-profile detection numbers only alongside the dirty-profile
+   number. `results/detection_leaderboard.md` is generated and still
+   clean-profile throughout.
 
 ---
 
