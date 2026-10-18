@@ -381,8 +381,19 @@ def verdicts(
             v = r.col_auc_deployable
             ok = v is not None and v > 0.5
             f1_pass[(ds, r.probe_type)] = ok
-            a(f"| {ds} | {r.probe_type} | {_f(v)} | "
-              f"{'pass' if ok else '**REFUTED**'} |")
+            # Undefined is NOT refuted. The project's convention is that
+            # `—` means "no measurement exists", never a failing score --
+            # on breast_cancer every column is corrupted, so there is no
+            # clean column to contrast against and the AUC has no value at
+            # all. Calling that REFUTED would claim a measurement we never
+            # made.
+            if v is None:
+                label = "n/a — undefined (no clean column to contrast)"
+            elif ok:
+                label = "pass"
+            else:
+                label = "**REFUTED**"
+            a(f"| {ds} | {r.probe_type} | {_f(v)} | {label} |")
     a("")
 
     # ── F2 ───────────────────────────────────────────────────────────────
@@ -470,6 +481,11 @@ def verdicts(
 
     overall = any(f1_pass.values())
     a("### Overall")
+    a("")
+    a("Where a pass survives scrutiny is decided by")
+    a("`results/w5_column_triage_control.md`, not by this table: a column's")
+    a("`d` depends on its cardinality as well as its corruption, so a")
+    a("cardinality-matched control is required before any pass is believed.")
     a("")
     if not overall:
         a("**The probe is REFUTED on every dataset and every probe type.**")
