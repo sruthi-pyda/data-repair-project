@@ -107,6 +107,12 @@ SEED = 42
 ROW_CAP = 8000
 RATES = (0.0025, 0.01, 0.05)
 TYPES = ("missing", "swap_valid")
+
+#: The control is only meaningful if the two columns actually differ in
+#: tail-heaviness. breast_cancer's heaviest *scored* column has
+#: rare_frac 0.000, so it cannot host this control at all -- recorded as
+#: VOID rather than counted as evidence about rarity.
+MIN_RARE_CONTRAST = 0.02
 OUT_MD = ROOT / "results" / "w7_ceiling.md"
 
 #: (dataset, low-tail column, heavy-tail column). Chosen from the clean
@@ -267,6 +273,24 @@ class Condition:
             return None
         return self.stat_target > self.stat_control
 
+    @property
+    def control_valid(self) -> bool:
+        """
+        Is there a real rarity contrast to test?
+
+        If the 'heavy-tailed' column is no heavier than the target, the
+        comparison measures column-specific score scale rather than rarity,
+        and counting it as evidence about rare-but-valid values would be
+        wrong. breast_cancer fails this: both of its candidate columns have
+        rare_frac 0.000, and its result is driven by `Clump Thickness`
+        carrying a mean score of ~0.43 against `class` at ~0.01.
+        """
+        if self.config == "A":
+            return (self.control_rare_frac - self.target_rare_frac
+                    ) >= MIN_RARE_CONTRAST
+        return (self.target_rare_frac - self.control_rare_frac
+                ) >= MIN_RARE_CONTRAST
+
 
 def run_condition(
     dataset: str, clean: pd.DataFrame, target: str, control: str,
@@ -417,22 +441,46 @@ def write_report(conds: List[Condition], rows_used: Dict[str, int]) -> str:
           f"`{c.target}` ({c.target_rare_frac:.3f}) | "
           f"`{c.control}` ({c.control_rare_frac:.3f}) | "
           f"{_f(c.stat_target)} | {_f(c.stat_control)} | "
-          f"{'—' if rtf is None else ('**yes**' if rtf else '**NO**')} |")
+          + ("_void control_" if not c.control_valid
+             else ('—' if rtf is None
+                   else ('**yes**' if rtf else '**NO**'))) + " |")
     a("")
+    void = [c for c in conds if not c.control_valid]
+    if void:
+        vds = sorted({c.dataset for c in void})
+        a(f"**{len(void)} condition(s) have a VOID control** and are excluded")
+        a(f"from the summary below: {', '.join('`'+d+'`' for d in vds)}. The")
+        a(f"two columns there differ by less than {MIN_RARE_CONTRAST} in")
+        a("rare-value fraction, so the comparison measures column-specific")
+        a("score *scale*, not rarity. On breast_cancer both candidates have")
+        a("rare_frac 0.000 and the result is driven by `Clump Thickness`")
+        a("carrying a mean score near 0.43 against `class` near 0.01 —")
+        a("nothing to do with rare-but-valid values. breast_cancer has no")
+        a("heavy-tailed *scored* column and cannot host this control.")
+        a("")
     hard = [c for c in conds
             if c.config == "A" and c.ctype == "swap_valid"
-            and c.ranks_target_first is not None]
+            and c.control_valid and c.ranks_target_first is not None]
     if hard:
         n_ok = sum(1 for c in hard if c.ranks_target_first)
-        a(f"On the hard case — config A, `swap_valid`, a corrupted low-tail")
-        a(f"column against a clean heavy-tailed one — the mean-score statistic")
-        a(f"ranks the corrupted column first in **{n_ok} of {len(hard)}**")
-        a("conditions.")
-        if n_ok == 0:
-            a("")
-            a("Zero. The statistic tracks **rarity, not corruption**, which is")
-            a("the original adult failure reproduced deliberately and")
-            a("repeatably instead of observed once.")
+        a("On the hard case — config A, `swap_valid`, a corrupted low-tail")
+        a("column against a clean heavy-tailed one, **valid controls only** —")
+        a(f"the mean-score statistic ranks the corrupted column first in")
+        a(f"**{n_ok} of {len(hard)}** conditions.")
+        a("")
+        if n_ok == len(hard):
+            a("**All of them.** This *contradicts* the prediction pre-registered")
+            a("in `docs/w7_plan.md` §3.5(3), which said every statistic tested")
+            a("so far would rank the clean heavy-tailed column first. On a")
+            a("cleanly-injected table it does not. The original adult failure")
+            a("is therefore **not** a simple rarity artefact — something about")
+            a("the real dirty frame, not rarity alone, produces it.")
+        elif n_ok == 0:
+            a("Zero. The statistic tracks **rarity, not corruption** — the")
+            a("original adult failure reproduced deliberately.")
+    else:
+        a("No condition had both a valid control and the hard corruption")
+        a("type, so this comparison did not run.")
     a("")
 
     a("## 4. Setup")
