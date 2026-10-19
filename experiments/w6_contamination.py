@@ -132,6 +132,11 @@ def est_mixmod(scores: np.ndarray, seed: int = SEED) -> Optional[float]:
         from pythresh.thresholds.mixmod import MIXMOD
     except Exception:
         return None
+    if np.unique(np.asarray(scores, dtype=float)).size < 3:
+        # Same guard as the other two estimators. Without it MIXMOD happily
+        # returns a number for an all-zero column, and that number enters the
+        # ranking -- see `n_excluded` below for why that is fatal.
+        return None
     try:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
@@ -258,6 +263,12 @@ class ColumnRow:
     n_distinct: int
     mean_score: float
     pi: Dict[str, Optional[float]]
+    n_distinct_scores: int = -1
+    excluded: str = ""
+
+    @property
+    def scored(self) -> bool:
+        return not self.excluded
 
 
 @dataclasses.dataclass
@@ -270,9 +281,18 @@ class DatasetResult:
     rows: List[ColumnRow]
     seconds: float
 
+    def scored_rows(self) -> List["ColumnRow"]:
+        return [r for r in self.rows if r.scored]
+
     def defined(self) -> bool:
-        """A column-level AUC needs both classes present."""
-        return 0 < self.n_corrupted_cols < self.n_cols
+        """
+        A column-level AUC needs both classes present **among the columns
+        the detector actually scored** -- excluded columns are not a
+        population the statistic was computed on.
+        """
+        sc = self.scored_rows()
+        n_corr = sum(1 for r in sc if r.is_corrupted)
+        return 0 < n_corr < len(sc)
 
 
 def spearman(a: Sequence[float], b: Sequence[float]) -> Optional[float]:
@@ -332,23 +352,44 @@ def measure(dataset: str, row_cap: int, verbose: bool = True) -> DatasetResult:
         if s.size > EST_SAMPLE:
             s = s[np.sort(sub.choice(s.size, size=EST_SAMPLE, replace=False))]
         truth = labels[col].to_numpy().astype(bool)
-        pi = {e: ESTIMATOR_FNS[e](s) for e in ESTIMATORS} if s.size else {
-            e: None for e in ESTIMATORS}
+
+        # A column the detector SKIPS (ID-like, high-cardinality text,
+        # constant) gets an all-zero score vector. It carries no information
+        # about contamination, but it is still a *number*, so leaving it in
+        # makes the ranking measure "did the detector score this column at
+        # all" rather than "is this column contaminated". On hospital that is
+        # 12 of 20 columns, and it is why mixmod's AUC matched the mean-score
+        # baseline to four decimals on six datasets. Excluded, like the
+        # detector-skipped columns in experiments/w5_column_triage.py.
+        nds = int(np.unique(s).size) if s.size else 0
+        excluded = "" if nds >= 3 else (
+            f"detector gives {nds} distinct score(s) "
+            f"(skipped: {det.skipped_columns_.get(col, 'constant')})"
+            if hasattr(det, "skipped_columns_")
+            else f"detector gives {nds} distinct score(s)")
+        pi = ({e: ESTIMATOR_FNS[e](s) for e in ESTIMATORS}
+              if (s.size and not excluded) else {e: None for e in ESTIMATORS})
         rows.append(ColumnRow(
             column=col,
             is_corrupted=bool(truth.sum() > 0),
             true_rate=float(truth.mean()),
             n_distinct=int(pd.Series(dirty[col]).nunique(dropna=True)),
             mean_score=float(np.nanmean(scores[col].to_numpy(dtype=float))),
-            pi=pi,
+            pi=pi, n_distinct_scores=nds, excluded=excluded,
         ))
         if verbose:
             def f(v: Optional[float]) -> str:
                 return "  —   " if v is None else f"{v:7.4f}"
-            print(f"    {col[:24]:<25}{'CORRUPT' if rows[-1].is_corrupted else 'clean  '}"
-                  f" true={rows[-1].true_rate:7.4f}"
-                  f" mixmod={f(pi['mixmod'])} gmm={f(pi['gmm'])}"
-                  f" dbic={f(pi['dbic'])}")
+            if rows[-1].excluded:
+                print(f"    {col[:24]:<25}"
+                      f"{'CORRUPT' if rows[-1].is_corrupted else 'clean  '}"
+                      f" EXCLUDED ({rows[-1].n_distinct_scores} distinct score)")
+            else:
+                print(f"    {col[:24]:<25}"
+                      f"{'CORRUPT' if rows[-1].is_corrupted else 'clean  '}"
+                      f" true={rows[-1].true_rate:7.4f}"
+                      f" mixmod={f(pi['mixmod'])} gmm={f(pi['gmm'])}"
+                      f" dbic={f(pi['dbic'])}")
 
     return DatasetResult(
         dataset=dataset, n_rows=len(dirty), n_rows_full=len(dirty_full),
@@ -362,6 +403,11 @@ def auc_for(res: DatasetResult, key: str) -> Optional[float]:
     """Column-level AUC using estimator `key` (or 'mean_score') as the score."""
     vals, ys = [], []
     for r in res.rows:
+        if not r.scored:
+            # The baseline is restricted to the same columns as the
+            # estimators, otherwise it is scored on a different population
+            # and the comparison means nothing.
+            continue
         v = r.mean_score if key == "mean_score" else r.pi.get(key)
         if v is None or not np.isfinite(v):
             continue
@@ -373,10 +419,11 @@ def auc_for(res: DatasetResult, key: str) -> Optional[float]:
 
 
 def rho_for(res: DatasetResult, key: str) -> Optional[float]:
+    scored = [r for r in res.rows if r.scored]
     vals = [r.mean_score if key == "mean_score" else r.pi.get(key)
-            for r in res.rows]
+            for r in scored]
     vals = [np.nan if v is None else float(v) for v in vals]
-    return spearman(vals, [r.true_rate for r in res.rows])
+    return spearman(vals, [r.true_rate for r in scored])
 
 
 def _f(v: Optional[float], nd: int = 4) -> str:
@@ -454,12 +501,24 @@ def write_report(
     a("present; `results/w5_column_sparsity.md` records why adult alone")
     a("cannot settle this (power ceiling p = 1/15 = 0.067).")
     a("")
-    a("| dataset | corrupted/total cols | mixmod | gmm | dbic | baseline (mean score) |")
-    a("|---|---|---:|---:|---:|---:|")
+    a("**Columns the detector skips are excluded.** An ID-like,")
+    a("high-cardinality-text or constant column gets an all-zero score")
+    a("vector, which carries no information about contamination. Leaving")
+    a("those in makes the ranking measure *whether the detector scored the")
+    a("column at all* — on hospital that is 12 of 20 columns, and it is why")
+    a("an earlier version of this table had mixmod matching the mean-score")
+    a("baseline to four decimals on six datasets. The baseline below is")
+    a("restricted to the same scored columns, or the comparison would be")
+    a("against a different population.")
+    a("")
+    a("| dataset | scored cols | excluded | corrupted (of scored) | mixmod | gmm | dbic | baseline (mean score) |")
+    a("|---|---:|---:|---:|---:|---:|---:|---:|")
     for res in results:
-        tag = (f"{res.n_corrupted_cols}/{res.n_cols}"
-               + ("" if res.defined() else " ⚠ undefined"))
-        a(f"| {res.dataset} | {tag} | "
+        sc = res.scored_rows()
+        n_corr = sum(1 for r in sc if r.is_corrupted)
+        tag = "" if res.defined() else " ⚠"
+        a(f"| {res.dataset}{tag} | {len(sc)}/{res.n_cols} | "
+          f"{res.n_cols - len(sc)} | {n_corr} | "
           + " | ".join(_f(auc_for(res, k)) for k in keys) + " |")
     if defined:
         a("| **mean over defined** | | "
@@ -538,13 +597,21 @@ def write_report(
         a(f"{res.n_rows:,} rows (of {res.n_rows_full:,}) x {res.n_cols} "
           f"columns, {res.n_corrupted_cols} corrupted. [{res.seconds:.0f}s]")
         a("")
-        a("| column | corrupted | true rate | distinct | mixmod | gmm | dbic | mean score |")
+        a("| column | corrupted | true rate | distinct vals | mixmod | gmm | dbic | mean score |")
         a("|---|---|---:|---:|---:|---:|---:|---:|")
-        for r in sorted(res.rows, key=lambda r: -(r.pi.get(primary) or -1e18)):
+        for r in sorted(res.scored_rows(),
+                        key=lambda r: -(r.pi.get(primary) or -1e18)):
             a(f"| `{r.column}` | {'**yes**' if r.is_corrupted else 'no'} | "
               f"{r.true_rate:.4f} | {r.n_distinct:,} | {_f(r.pi.get('mixmod'))} | "
               f"{_f(r.pi.get('gmm'))} | {_f(r.pi.get('dbic'), 1)} | "
               f"{r.mean_score:.4f} |")
+        skipped = [r for r in res.rows if not r.scored]
+        if skipped:
+            a("")
+            a(f"Excluded ({len(skipped)}): " + ", ".join(
+                f"`{r.column}`{'*' if r.is_corrupted else ''}" for r in skipped)
+              + ". `*` marks a genuinely corrupted column the detector does")
+            a("not score at all — invisible to this mechanism by construction.")
         a("")
 
     a("## 6. Leakage")
