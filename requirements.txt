@@ -17,3 +17,10 @@ openai>=1.0.0           # Phase 12: LLM repair (optional; urllib fallback exists
 python-dotenv>=1.0.0    # Phase 12: .env loading (optional; built-in parser exists)
 # plotly>=5.17.0          # Phase 12: interactive visualisations
 # seaborn>=0.12.0         # Phase 12: additional plot styles
+
+# ── Research experiments (Wave 6; not needed for the pipeline or test suite) ──
+# W6.1 (experiments/w6_contamination.py) uses the published Gao & Tan
+# exponential+Gaussian mixture estimator. Optional: the experiment reports `—`
+# for the `mixmod` column if it is absent and still runs its two independently
+# implemented estimators. Pulls in pyod + numba + llvmlite.
+pythresh>=1.1.1
