@@ -31,9 +31,54 @@ and smartfactory are unaffected, for mechanical reasons given in `CLAUDE.md`
 basis — see `results/w5_raha_comparison.md`, whose conclusion is corrected at
 the top.
 
-So: cite §1 freely. Never cite a detection number from this document without
-the dirty-profile figure beside it, and never call the detector "label-free"
-without adding "but not clean-free".
+### Detection: the leakage-controlled figure is the primary one (W7.0b)
+
+Quote the **dirty-profile** column. It is the zero-knowledge number — no
+clean data of any kind — and it is what a reader can reproduce without the
+ground truth. The clean-profile column is kept beside it because it is what
+the shipped pipeline does, and because deleting it would invalidate numbers
+already reported elsewhere, which `CLAUDE.md` §3 forbids.
+
+| dataset | metric | clean profile | **dirty profile (primary)** |
+|---|---|---:|---:|
+| adult | PR-AUC | 0.0025 | **0.0025** |
+| smartfactory | PR-AUC | 1.0000 | **1.0000** |
+| breast_cancer | PR-AUC | 0.6712 | **0.5224** |
+| hospital | F1 | 0.9271 | **0.0000** |
+| rayyan | F1 | 0.3702 | **0.0558** |
+| beers | F1 | 0.8622 | **0.0558** |
+
+Sources: `results/w5_leakage_ablation.md`, `results/w5_raha_leakage_check.md`.
+`results/detection_leaderboard.md` is generated and remains clean-profile
+throughout, so it must not be quoted without this table.
+
+Never call the detector "label-free" without adding "but not clean-free".
+
+### And on adult, the system equals doing nothing (W7.0c)
+
+From `results/w5_complete_costs.md`, total harm including undetected
+corruption:
+
+| policy | total harm | vs do-nothing |
+|---|---:|---:|
+| **proposed (calibrated risk-aware)** | **8,505** | **0** |
+| always-abstain | 8,505 | 0 |
+| _do-nothing (no detector)_ | 8,505 | 0 |
+| always-human | 20,163 | +11,658 |
+| always-auto | 66,795 | +58,290 |
+
+The proposed policy ties *do-nothing* on adult. It beats every active
+baseline by a wide margin — avoiding 11,658 to 58,290 units of avoidable
+harm — but it adds **nothing** over having no detector at all, because
+adult's 1,701 genuine corruptions are never detected and so enter every
+policy's cost identically.
+
+That is the honest reading of adult's "0" wherever it appears in §1, and it
+should be stated in those words rather than left as a cell in a table. It is
+a real property of the method on valid-to-valid corruption, not a reporting
+artefact.
+
+So: cite §1 freely for the *decision* claim, which survives both arms.
 
 ---
 
