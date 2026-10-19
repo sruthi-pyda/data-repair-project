@@ -188,15 +188,132 @@ prior on `q`, and `q` is what the three-way decision rule consumes.
 - [ ] Commit this plan before any W6 code (protocol §8b.2)
 - [ ] **W6.0** re-run the W5.3 probe across the eight testable datasets,
       pooled, so the refutation is properly powered rather than adult-only
-- [ ] **W6.1** M2: `pi_hat_c` per column, with the one-number falsification
-      test on adult and the pooled evaluation on the eight
-- [ ] **W6.2** if M2 survives: feed `pi_hat_c` as the per-column prior for
-      `q` and measure the *decision-layer* effect (realised cost), which is
-      the only metric Wave 5 left standing
-- [ ] **W6.3** only if M2 dies: M4, the column-level two-sample test
+- [x] **W6.1** M2 — **REFUTED**, see §8. Loses to the mean-raw-score
+      baseline pooled (0.6973 vs 0.7512)
+- [~] **W6.2** moot for M2, which did not survive. Still the right shape
+      for whatever mechanism does: feed the per-column statistic as the prior
+      for `q` and measure realised cost, the only metric Wave 5 left standing
+- [ ] **W6.3** M2 died, so M4 is next — but build **M4-prime** (§10), the
+      overdispersion/calibration form, not the naive two-sample form, which
+      fails for the same reason M2 did
 - [ ] Decide explicitly whether M3 is worth running given its own derivation
       predicts failure on adult
 - [ ] The controlled corruption study remains unbuilt — `src/datagen/`
       (169 tests) has never been used in an experiment. It is the way to vary
       column sparsity and prevalence *deliberately* rather than taking
       whatever the eight datasets happen to have.
+
+---
+
+## 8. RESULT — W6.1 is refuted, and it reframes what is left
+
+`results/w6_contamination.md`. Column-level AUC, mean over the six datasets
+where both classes survive the skipped-column exclusion:
+
+| statistic | mean AUC |
+|---|---:|
+| `mixmod` | 0.6973 |
+| `gmm` | 0.6041 |
+| `dbic` | 0.5439 |
+| **baseline (mean raw score)** | **0.7512** |
+
+**The trivial baseline wins.** Spearman rho against each column's true
+corruption rate agrees: the baseline wins or ties on six of the eight
+datasets where it is defined.
+
+The pre-registered one-number test **passed** — `pi_hat(income)` 0.3662 >
+`pi_hat(native_country)` 0.2016 — and it did not matter, because `income`
+still ranks 11th of 15 on adult. **The test was necessary but not
+sufficient**, aimed at the one known failure mode. The W5.3 plan warned about
+exactly this and I walked into it anyway; future falsification conditions
+must include "beats the trivial baseline, pooled", not just "fixes the known
+anecdote".
+
+### Why the hypothesis failed — and it is not an estimator bug
+
+The synthetic self-check recovers genuine contamination almost exactly
+(true 0.0400 to 0.0424; true 0.2000 to 0.2014) while returning false highs on
+single-component skewed distributions (0.1360 and 0.0702 at a true 0.0000).
+
+So **separability does not separate**. Real *clean* columns have genuine
+two-component score structure, because the conditional model fits unevenly
+across rows for entirely legitimate reasons. On adult, `education`,
+`marital_status`, `gender` and `relationship` all score above the genuinely
+corrupted `income`.
+
+This is the deep point, and it generalises beyond M2: **two-component
+structure in the scores reflects heterogeneity in the model's own competence,
+not contamination in the data.**
+
+---
+
+## 9. The finding that matters more than M2 — coverage
+
+After excluding columns the detector cannot model:
+
+| dataset | columns scored |
+|---|---|
+| `flights` | **0 / 7** — nothing at all |
+| `movies` | 2 / 17 |
+| `beers` | 2 / 11 |
+| `rayyan` | 3 / 11 |
+| `restaurants` | 6 / 16 |
+| `hospital` | 8 / 20 |
+| `adult` | 15 / 15 |
+| `smartfactory` | 19 / 19 |
+
+`ConditionalDetector` skips most columns in text-heavy tables as
+`high_cardinality_non_numeric`, and **five of eleven datasets no longer have
+both classes among scored columns at all**, so no column-level AUC exists
+there.
+
+This is more fundamental than the triage question. **The method applies only
+to tables that are mostly numeric or low-cardinality categorical, and real
+dirty-data benchmarks are mostly text.** It also explains the cross-domain
+failures in `results/w5_cross_domain.md` without needing a separate story.
+
+For the paper this belongs in scope and limitations, stated plainly, because
+a reviewer running our code on `flights` would get **zero scored columns**.
+
+Note also which dataset the baseline fails on: **adult alone** (0.3571, below
+chance). Everywhere else the mean raw score is fine. So the displacement
+problem is specific to adult's valid-to-valid corruption — and the dataset
+where column triage is most needed is the one where every mechanism tried so
+far fails.
+
+---
+
+## 10. What remains: M4, and the one version of it that survives
+
+Naive M4 — compare a column's observed distribution against its
+model-implied conditional — **fails for the same reason M2 did**. A clean but
+hard-to-predict column diverges from its model-implied distribution for
+legitimate reasons. Pre-register that as its primary failure mode.
+
+**M4-prime (the version worth building).** Do not compare observed against
+predicted *distribution*. Compare observed error against the error the model
+**itself predicts it will make** — an overdispersion / calibration test:
+
+    clean column      -> observed residual dispersion is about equal to the
+                         model's own predicted uncertainty (well calibrated)
+    corrupted column  -> EXCESS error beyond what the model expects
+                         (systematically over-confident)
+
+This normalises away "this column is just hard", which is precisely the
+confound that killed M2, because a hard column's model is *uncertain and
+knows it*. It is also dimensionless and population-level, satisfying §2.
+
+And it sits on the project's own strongest machinery: we already compute
+Brier and ECE, and Phase 6b already consumes a calibrated `q`. A per-column
+miscalibration statistic feeding `q` is the budget-allocation framing of §6
+with no new conceptual apparatus.
+
+**Falsification, fixed now and stronger than last time:**
+
+1. Pooled mean column-level AUC over the datasets where it is defined must
+   **beat the mean-raw-score baseline of 0.7512**. Beating 0.5 is not enough.
+2. It must not simply rank hard-to-predict columns first: report the
+   correlation between the statistic and each column's model accuracy, and if
+   that explains the ranking, the mechanism is the M2 confound again.
+3. `adult` must be reported but cannot carry the verdict (power ceiling
+   p = 1/15).
