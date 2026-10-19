@@ -1,5 +1,24 @@
 # Cross-domain detection: the rule detector on nine datasets
 
+> **COVERAGE WARNING — added by W7.0a.** This file reports *effectiveness*
+> (lift) and says nothing about *applicability*. See
+> `results/w7_coverage.md`, which measures how many columns each detector can
+> form an opinion about at all. The headline numbers there:
+>
+> - the **conditional** detector (the Wave 1 contribution) scores **0 of 7**
+>   of `flights`' columns, 2 of 17 on `movies`, 3 of 11 on `beers` and
+>   `rayyan` — it skips high-cardinality text it cannot model
+> - the **rule** detector — the one measured *in this file* — scores only
+>   **1 of 15** columns on `adult`, and `income`, the single corrupted
+>   column, is one it never flags
+> - corruptions sitting in columns a detector cannot see are invisible **by
+>   construction**: 9 such columns on `hospital` and `movies`, 7 on
+>   `restaurants`, 6 on `rayyan`, 4 on `flights`
+>
+> So "generalises to six of nine" is a statement about the rule detector's
+> lift on the columns it happens to cover, not about the method working on
+> those datasets. Read the two files together.
+
 Measured with `src/detection_eval` (PR-AUC primary; lift = PR-AUC /
 prevalence, so **1.0x is chance**). Whole-dataset scoring, shipped detector
 configuration. `soccer` and `tax` omitted here for runtime and are run
