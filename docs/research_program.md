@@ -664,9 +664,15 @@ pipeline across corruption types. Options, in order of strength:
       the code); results `results/w5_column_triage.md` and
       `results/w5_column_triage_control.md`.
 
-      Census first: triage is only well posed on **adult** (1 of 15 columns
-      corrupted); breast_cancer is 12 of 12 so the column-level AUC does not
-      exist, and smartfactory is 18 of 19.
+      Census, **corrected**: among the three original datasets triage looked
+      well posed only on **adult** (1 of 15 columns corrupted; breast_cancer
+      is 12 of 12 so its column-level AUC does not exist, smartfactory 18 of
+      19). That census covered 3 of the 11 shipped datasets. Across all
+      eleven it is well posed on **eight** — see
+      `results/w5_column_sparsity.md`. The probe was therefore run on the
+      worst two datasets available, and adult's best-possible one-sided p is
+      1/15 = 0.067, so no adult-only result can reach p < 0.05. **A properly
+      powered re-run across the eight is the first thing to do.**
 
       On adult, three of four probe types land at or below chance, and the
       type that *matches* adult's true corruption (`swap_valid`) scores

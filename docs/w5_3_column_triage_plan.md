@@ -141,6 +141,18 @@ A column-level AUC needs both corrupted **and** clean columns. The census
 | smartfactory | 19 | 18 | 1 (`labels`) | barely: 18 vs 1, the AUC reduces to "where does `labels` rank" |
 | breast_cancer | 12 | **12** | **0** | **no — single class, AUC undefined** |
 
+> **CORRECTION, added after the run.** The census above covers only the three
+> *original* datasets. The repo also ships eight REIN datasets, and across all
+> eleven, column triage is well posed on **eight** of them (beers, flights,
+> hospital, movies, rayyan, restaurants, soccer, tax) — see
+> `results/w5_column_sparsity.md`. The conclusion below is therefore wrong as
+> written: the probe was run on adult and breast_cancer, which are the **worst
+> two choices available**. Adult's best-possible one-sided p is 1/15 = 0.067,
+> so no result on adult alone can reach p < 0.05. The refutation still stands
+> on its own terms — the cardinality confound was measured directly — but the
+> test was badly underpowered, and a properly powered re-run across the eight
+> is the obvious next step.
+
 So the probe can only really be *evaluated* on **adult** — which is exactly
 the dataset where the detector is blind, so it is also the dataset where
 triage would matter most. breast_cancer reports no column-level AUC at all
