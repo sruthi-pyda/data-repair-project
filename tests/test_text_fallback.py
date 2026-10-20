@@ -245,6 +245,41 @@ class TestAbstention:
         det.score_cells(df)
         assert det.reports_["uid"].scored is True
 
+    def test_indiscriminate_column_is_unsupported(self):
+        """
+        A column where most values have their own rare shape cannot be
+        discriminated on by the pattern signal, so it must abstain rather
+        than add noise to the ranking.
+        """
+        rng = np.random.default_rng(0)
+        # every value a different shape: letters, digits, punctuation mixed
+        vals = ["".join(rng.choice(list("ab12-_./"), size=6)) for _ in range(400)]
+        det = TextFallbackDetector()
+        out = det.score_cells(pd.DataFrame({"junk": vals}))
+        rep = det.reports_["junk"]
+        assert rep.scored is False
+        assert "indiscriminate" in rep.reason
+        assert float(out["junk"].abs().max()) == 0.0
+
+    def test_well_shaped_column_still_scored(self):
+        """The gate must not reject a column with a dominant shape."""
+        det = TextFallbackDetector()
+        det.score_cells(_city_column())
+        assert det.reports_["city"].scored is True
+
+    def test_gate_can_be_relaxed(self):
+        rng = np.random.default_rng(0)
+        vals = ["".join(rng.choice(list("ab12-_./"), size=6)) for _ in range(400)]
+        det = TextFallbackDetector(max_rare_shape_rate=1.0, min_frequent=0)
+        det.score_cells(pd.DataFrame({"junk": vals}))
+        assert det.reports_["junk"].scored is True
+
+    def test_rejects_bad_max_rare_shape_rate(self):
+        with pytest.raises(ValueError):
+            TextFallbackDetector(max_rare_shape_rate=0.0)
+        with pytest.raises(ValueError):
+            TextFallbackDetector(max_rare_shape_rate=1.5)
+
     def test_rejects_negative_min_frequent(self):
         with pytest.raises(ValueError):
             TextFallbackDetector(min_frequent=-1)

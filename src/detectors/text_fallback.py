@@ -91,6 +91,24 @@ NGRAM_N = 3
 #: (`docs/w9_plan.md` §W9.2b, abstention).
 MIN_FREQUENT_FOR_NEIGHBOUR = 2
 
+#: A column where more than this fraction of cells carry a *rare shape* is
+#: one the pattern signal cannot discriminate on -- it would be calling a
+#: large slice of the column anomalous, which no plausible corruption rate
+#: justifies. Such a column is reported **unsupported** rather than scored.
+#:
+#: 0.10 is chosen a priori on that reasoning, not tuned to an outcome. For
+#: reference, measured rare-shape fractions on newly-covered columns: every
+#: column where the fallback achieved good lift sits at or below 0.033
+#: (flights 0.000-0.033, hospital 0.000-0.016, movies `Duration` 0.001 and
+#: `Genre` 0.026), while the indiscriminate ones are far above it
+#: (movies `Filming Location` 0.353, restaurants `categories` 0.499,
+#: `payment-method` 0.213, `neighborhood` 0.204).
+MAX_RARE_SHAPE_RATE = 0.10
+
+#: Shape counted as "rare" for the gate above: occurring in under 1 % of
+#: rows, matching :data:`FREQUENT_THRESHOLD`.
+RARE_SHAPE_SCORE = 1.0 - FREQUENT_THRESHOLD
+
 #: A score this high means "missing", which the rule detector's
 #: missing-token check already owns; kept consistent with
 #: ``ConditionalDetector(nan_score=1.0)``.
@@ -168,6 +186,7 @@ class TextFallbackDetector:
         ngram_n: int = NGRAM_N,
         signals: Sequence[str] = SIGNALS,
         min_frequent: int = MIN_FREQUENT_FOR_NEIGHBOUR,
+        max_rare_shape_rate: float = MAX_RARE_SHAPE_RATE,
     ) -> None:
         bad = [s for s in signals if s not in SIGNALS]
         if bad:
@@ -184,8 +203,13 @@ class TextFallbackDetector:
         self.ngram_n = int(ngram_n)
         if min_frequent < 0:
             raise ValueError(f"min_frequent must be >= 0, got {min_frequent}")
+        if not 0.0 < max_rare_shape_rate <= 1.0:
+            raise ValueError(
+                f"max_rare_shape_rate must be in (0,1], got "
+                f"{max_rare_shape_rate}")
         self.signals = tuple(signals)
         self.min_frequent = int(min_frequent)
+        self.max_rare_shape_rate = float(max_rare_shape_rate)
         self.reports_: Dict[str, ColumnReport] = {}
 
     # ------------------------------------------------------------------ #
@@ -343,6 +367,21 @@ class TextFallbackDetector:
                 self.reports_[col] = ColumnReport(
                     col, len(s), n_distinct, n_freq, False, "constant")
                 continue
+            if "pattern" in self.signals:
+                pat = self._pattern_scores(
+                    list(s.astype("object").to_numpy()))
+                rare_rate = float(np.mean(pat >= RARE_SHAPE_SCORE))
+                if rare_rate > self.max_rare_shape_rate:
+                    # Indiscriminate: it would call this large a slice of the
+                    # column shape-anomalous, which no plausible corruption
+                    # rate justifies. Abstain instead of adding noise to the
+                    # ranking.
+                    self.reports_[col] = ColumnReport(
+                        col, len(s), n_distinct, n_freq, False,
+                        f"unsupported: {rare_rate:.1%} of cells carry a rare "
+                        f"shape (> {self.max_rare_shape_rate:.0%}), signal "
+                        f"is indiscriminate")
+                    continue
             if "neighbour" in self.signals and n_freq < self.min_frequent:
                 # Abstain rather than guess: with too few frequent values
                 # there are no plausible typo sources, so the signal that
