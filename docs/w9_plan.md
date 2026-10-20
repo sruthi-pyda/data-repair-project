@@ -100,6 +100,41 @@ type:
 All three are computed from the **dirty column alone** — no profile, no clean
 data, no labels.
 
+### W9.2b evaluation — six requirements, fixed before the run
+
+Amended after review, which added three things the first draft lacked: a
+**cost** requirement, a **reproducibility** requirement, and permission for
+the detector to **abstain**.
+
+| # | requirement |
+|---|---|
+| 1 | **Newly-covered columns** — coverage actually increases, reported as columns scored before and after. Necessary but trivial, so it licenses nothing alone. |
+| 2 | **Detection quality** — beats a baseline on a pre-specified metric (PR-AUC primary, precision/recall/F1 alongside since no published cell-level benchmark reports PR-AUC). |
+| 3 | **Rare-value protection** — legitimately rare values are not systematically flagged. Reported as the correlation between score and value frequency. |
+| 4 | **No regression** — `adult` (15/15 covered) and `smartfactory` (19/19) must not degrade. The fallback has nothing to add there, so the combined system must *equal* conditional-only. |
+| 5 | **Cost impact** — any detection gain must lower total expected cost with **both** false positives and missed errors priced. A detector that finds nothing must not look good. |
+| 6 | **Reproducibility** — holds across several row splits, not one hand-picked example. Mean and range reported, never a single number. |
+
+**The critical design decision**, and the one most likely to manufacture a
+false win: compare the fallback against the existing detector **on the same
+eligible cells**, and report newly-covered cells **separately**. Otherwise an
+apparent improvement is just a change in which cells are being evaluated.
+Three populations, never mixed:
+
+- **shared** — columns both detectors score. A like-for-like comparison.
+- **new** — columns only the fallback scores. Its own merit, against the
+  prevalence of those cells, which is the only honest reference at this
+  imbalance.
+- **whole table** — the combined system (conditional where available,
+  fallback where not) against conditional-only, over the identical cell
+  universe. This is the number that answers "does adding it help".
+
+**Abstention.** The fallback may mark a column **unsupported** rather than
+guess. The `neighbour` signal needs at least a couple of frequent values to
+act as typo sources; with fewer, it is uninformative and the column is
+reported unsupported instead of being scored from the remaining two signals.
+Honest coverage beats inflated coverage.
+
 ### Falsification — fixed now
 
 1. **Coverage must actually increase**, reported as columns scored before and

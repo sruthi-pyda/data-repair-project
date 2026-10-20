@@ -205,6 +205,51 @@ class TestMechanics:
             TextFallbackDetector(ngram_n=1)
 
 
+class TestAbstention:
+    """
+    The detector may mark a column unsupported rather than guess
+    (`docs/w9_plan.md` §W9.2b). The `neighbour` signal needs frequent values
+    to act as typo sources; with too few, the signal that distinguishes
+    rare-but-valid from corrupted cannot fire at all.
+    """
+
+    def test_all_unique_column_is_unsupported_not_scored(self):
+        """An all-unique column has NO frequent values, so no typo sources."""
+        df = pd.DataFrame({"uid": [f"id-{i:05d}" for i in range(400)]})
+        det = TextFallbackDetector()
+        out = det.score_cells(df)
+        rep = det.reports_["uid"]
+        assert rep.scored is False
+        assert "unsupported" in rep.reason
+        assert rep.n_frequent < 2
+        # An abstained column must be all-zero, matching how
+        # ConditionalDetector reports a column it skips.
+        assert float(out["uid"].abs().max()) == 0.0
+
+    def test_column_with_frequent_values_is_still_scored(self):
+        det = TextFallbackDetector()
+        det.score_cells(_city_column())
+        assert det.reports_["city"].scored is True
+
+    def test_abstention_can_be_disabled(self):
+        """min_frequent=0 opts out, so the choice is explicit not hidden."""
+        df = pd.DataFrame({"uid": [f"id-{i:05d}" for i in range(400)]})
+        det = TextFallbackDetector(min_frequent=0)
+        det.score_cells(df)
+        assert det.reports_["uid"].scored is True
+
+    def test_abstention_does_not_apply_without_the_neighbour_signal(self):
+        """Pattern and ngram do not need typo sources, so they still run."""
+        df = pd.DataFrame({"uid": [f"id-{i:05d}" for i in range(400)]})
+        det = TextFallbackDetector(signals=("pattern", "ngram"))
+        det.score_cells(df)
+        assert det.reports_["uid"].scored is True
+
+    def test_rejects_negative_min_frequent(self):
+        with pytest.raises(ValueError):
+            TextFallbackDetector(min_frequent=-1)
+
+
 class TestNoLeakage:
     def test_profile_is_ignored(self):
         df = _city_column()

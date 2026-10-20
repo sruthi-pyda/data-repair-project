@@ -84,6 +84,13 @@ TOP_K_FREQUENT = 40
 #: Character n-gram order. 3 is the usual choice for short field values.
 NGRAM_N = 3
 
+#: The ``neighbour`` signal needs at least this many frequent values to act
+#: as plausible typo sources. Below it the signal is uninformative, so the
+#: column is reported **unsupported** rather than scored from the remaining
+#: signals -- honest coverage beats inflated coverage
+#: (`docs/w9_plan.md` §W9.2b, abstention).
+MIN_FREQUENT_FOR_NEIGHBOUR = 2
+
 #: A score this high means "missing", which the rule detector's
 #: missing-token check already owns; kept consistent with
 #: ``ConditionalDetector(nan_score=1.0)``.
@@ -160,6 +167,7 @@ class TextFallbackDetector:
         top_k: int = TOP_K_FREQUENT,
         ngram_n: int = NGRAM_N,
         signals: Sequence[str] = SIGNALS,
+        min_frequent: int = MIN_FREQUENT_FOR_NEIGHBOUR,
     ) -> None:
         bad = [s for s in signals if s not in SIGNALS]
         if bad:
@@ -174,7 +182,10 @@ class TextFallbackDetector:
         self.frequent_threshold = float(frequent_threshold)
         self.top_k = int(top_k)
         self.ngram_n = int(ngram_n)
+        if min_frequent < 0:
+            raise ValueError(f"min_frequent must be >= 0, got {min_frequent}")
         self.signals = tuple(signals)
+        self.min_frequent = int(min_frequent)
         self.reports_: Dict[str, ColumnReport] = {}
 
     # ------------------------------------------------------------------ #
@@ -331,6 +342,15 @@ class TextFallbackDetector:
             if n_distinct < 2:
                 self.reports_[col] = ColumnReport(
                     col, len(s), n_distinct, n_freq, False, "constant")
+                continue
+            if "neighbour" in self.signals and n_freq < self.min_frequent:
+                # Abstain rather than guess: with too few frequent values
+                # there are no plausible typo sources, so the signal that
+                # distinguishes rare-but-valid from corrupted cannot fire.
+                self.reports_[col] = ColumnReport(
+                    col, len(s), n_distinct, n_freq, False,
+                    f"unsupported: only {n_freq} frequent value(s), "
+                    f"neighbour signal uninformative")
                 continue
             scores, _ = self.score_column(s)
             out[col] = scores
