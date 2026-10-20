@@ -205,3 +205,110 @@ as a failure.
 - Note from this wave's search: **no published cell-level error-detection
   benchmark reports PR-AUC.** Our PR-AUC-primary rule is right for extreme
   imbalance but makes us incomparable, so report precision/recall/F1 too.
+
+---
+
+## 8. THE ROOT CAUSE — one nuisance parameter explains all four failures
+
+Added after W8-A ran. This is the most important thing this wave produced,
+and it came from the one diagnostic the plan asked for.
+
+CACM on adult `income` fitted:
+
+    r = 0.1852        (true corruption rate 0.0400)
+    g = {1: 0.8115, 0: 0.1885}
+
+The real corruption is **entirely `1 -> 0`**, so the correct `g` is
+`{0: 1.0}`. CACM instead recovered approximately the **column marginal**
+(income is ~75 % ones), and an `r` of 0.1852 — which is not the corruption
+rate but roughly **the conditional model's own error rate** on that column
+(income is ~85 % predictable from the row).
+
+So EM found a degenerate solution: **it absorbed the model's own prediction
+error into the "corruption" component.** To a model that is only 85 %
+accurate, its own errors also look x-independent, so x-independence alone
+cannot separate them from corruption.
+
+**x-independence is necessary but not sufficient.**
+
+### The same cause killed every previous mechanism
+
+| mechanism | what it absorbed |
+|---|---|
+| M1 likelihood ratio | background density, i.e. per-column difficulty |
+| W5.3 self-detectability | cardinality — which *is* a proxy for how predictable a column is |
+| M2 contamination fraction | "clean-but-hard-to-predict columns are two-component too" |
+| W8-A CACM | the model's error rate, directly, as `r` |
+
+All four reduce to one sentence:
+
+> **The per-column model error rate is a nuisance parameter, and every
+> per-column corruption statistic we have built absorbs it instead of the
+> corruption.**
+
+### And it explains the asymmetry we measured
+
+This is the part that makes it a real diagnosis rather than a story:
+
+- **Within** a column we reach **77.9 %** of the Bayes ceiling. The model's
+  error rate is *constant across that column's cells*, so it is a constant
+  offset that does not change the ranking. Harmless.
+- **Across** columns we sit at **chance**. The error rate *differs per
+  column*, and those differences dominate the between-column signal. Fatal.
+
+One nuisance parameter, harmless within a column and fatal across columns —
+which is exactly the pattern in the data.
+
+---
+
+## 9. W8-D — Excess Surprise, and why it is the uniquely correct fix
+
+If the problem is a nuisance parameter, the fix is to cancel it, not to model
+around it. The quantity we want is not "how surprised is the model" but
+
+> **how much MORE surprised is the model than it expected to be.**
+
+A model states its own expected error for free: if it predicts
+`f(v_top | x) = 0.6`, it expects to be wrong 40 % of the time. So per column:
+
+    expected_error_c  =  mean over rows of  (1 - f(v_pred | x))     <- model's own forecast
+    observed_error_c  =  mean over rows of  (1 - f(v_obs  | x))     <- what it actually sees
+    excess_c          =  observed_error_c - expected_error_c
+
+- **clean column** — a competent *or* incompetent model that is calibrated
+  has `observed ~= expected`, so `excess ~= 0`. **Difficulty cancels.**
+- **corrupted column** — `r` of the cells were replaced by x-independent
+  draws the model could not have anticipated, so it is wrong *more often
+  than it forecast*: `excess > 0`, scaling with `r`.
+
+Two properties that no previous mechanism had:
+
+1. **The nuisance parameter cancels by subtraction.** Both terms carry the
+   column's difficulty in the same units, so the difference does not.
+2. **It is dimensionless and population-level**, satisfying `docs/w6_plan.md`
+   §2, and it needs no cross-column normalisation.
+
+It also sits on this project's established niche: `docs/literature.md` records
+that **no paper evaluates calibration quality** of an error detector. Excess
+Surprise *is* a per-column calibration gap, and Phase 6b already consumes a
+calibrated `q`.
+
+### Prior art
+
+Closest relatives are classical **overdispersion tests**, per-column
+**calibration error (ECE)**, and model self-assessment. The honest claim is
+narrow: *using the detector's own per-column miscalibration as the corruption
+signal, because it cancels the per-column difficulty that confounds every
+other per-column statistic.* Not "a new calibration metric".
+
+### Falsification — the §5 conditions plus two aimed at this mechanism
+
+8. **Difficulty must actually cancel.** Report the correlation between
+   `excess_c` and the column's expected error. If `excess` still tracks
+   difficulty, the subtraction failed and this is the M2 confound again.
+9. **Must beat its own ingredients.** It must beat both `observed_error_c`
+   alone and `expected_error_c` alone as column statistics. If a single term
+   does as well, the subtraction contributes nothing.
+
+Files: `src/detectors/excess_surprise.py`, `tests/test_excess_surprise.py`,
+`experiments/w8d_excess.py`, `results/w8d_excess.md`.

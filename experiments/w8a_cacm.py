@@ -389,8 +389,9 @@ def measure(
         base_table_pr_auc=pr_auc(truth_flat, b_flat) if defined else None,
         cacm_table_roc_auc=roc_auc(truth_flat, c_flat) if defined else None,
         base_table_roc_auc=roc_auc(truth_flat, b_flat) if defined else None,
-        cacm_best_f1=(best_f1(truth_flat, c_flat) or {}).get("f1") if defined else None,
-        base_best_f1=(best_f1(truth_flat, b_flat) or {}).get("f1") if defined else None,
+        # best_f1 returns a TUPLE (f1, threshold), not a dict.
+        cacm_best_f1=best_f1(truth_flat, c_flat)[0] if defined else None,
+        base_best_f1=best_f1(truth_flat, b_flat)[0] if defined else None,
         seconds=time.time() - t0,
         cacm_report=cacm.report(),
     )
