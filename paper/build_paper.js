@@ -253,7 +253,9 @@ P(body("Because five of our eleven datasets fall at or below the row cap used " 
   "for subsampling, repeated row splits are not independent replicates on those " +
   "datasets. We therefore vary the model seed across replicates and additionally " +
   "report a 95% bootstrap confidence interval computed by resampling evaluated " +
-  "cells, which remains valid for a single run of a small table."));
+  "cells, which remains valid for a single run of a small table. The " +
+  "intervals in Table III are of that kind, and overlapping intervals are " +
+  "reported as overlapping rather than as improvements."));
 
 /* V. RESULTS */
 P(H1("V", "Results"));
@@ -336,20 +338,24 @@ P(body("The conditional model treats a column as a categorical variable and " +
 P(caption("TABLE III.\tWHOLE-TABLE PR-AUC, CONDITIONAL MODEL ALONE AND WITH FALLBACK"));
 P(table(
   ["Dataset", "Base", "+ Fallback"],
-  [["Flights", "0.2958", "0.8360"],
-   ["Hospital", "0.2632", "0.4974"],
-   ["Beers", "0.4104", "0.5087"],
-   ["Rayyan", "0.0931", "0.1639"],
-   ["Tax", "0.0489", "0.0712"],
-   ["Movies", "0.0860", "0.0855"]],
-  [1800, 1300, 1300]));
+  [["Flights", "0.2958 [.289,.302]", "0.8360 [.828,.844]"],
+   ["Hospital", "0.2632 [.225,.303]", "0.4974 [.454,.542]"],
+   ["Beers", "0.4104 [.395,.427]", "0.5087 [.492,.526]"],
+   ["Rayyan", "0.0931 [.086,.100]", "0.1639 [.152,.177]"],
+   ["Tax", "0.0739 [.014,.160]", "0.0966 [.024,.192]"],
+   ["Movies", "0.0872 [.081,.094]", "0.0876 [.082,.094]"]],
+  [1400, 1500, 1500]));
 P(body("Flights is the clearest case: the conditional model scores no columns " +
-  "at all there, so its 0.2958 is simply the prevalence. Scope must be stated " +
-  "plainly, however. The fallback is gated to abstain on columns where it " +
-  "cannot discriminate, and even so Movies regresses slightly, because the " +
-  "fallback also scores columns that contain no errors. On two datasets a pure " +
-  "rarity baseline matches or beats it. This is a targeted extension, not a " +
-  "general detector.", { indent: { firstLine: 0 } }));
+  "at all there, so its 0.2958 is simply the prevalence. On Flights and " +
+  "Hospital the intervals before and after are disjoint, so those gains are " +
+  "separated rather than merely larger point estimates. Elsewhere the picture " +
+  "is weaker and the scope must be stated plainly. On Tax and Movies the " +
+  "intervals overlap, so no improvement is claimed there; on two datasets a " +
+  "pure rarity baseline matches or beats the fallback; and the detector must " +
+  "be gated to abstain on columns where it cannot discriminate, because it " +
+  "otherwise scores columns containing no errors at all and displaces true " +
+  "positives in the ranking. This is a targeted extension for text-heavy " +
+  "tables, not a general detector.", { indent: { firstLine: 0 } }));
 
 P(H2("D", "Comparison with a published system, and the leakage ablation"));
 P(body("Removing clean-derived profile statistics is severe for rule-based " +
