@@ -424,13 +424,13 @@ REFS.forEach((r, i) => P(new Paragraph({
 /* ---------- document ---------- */
 const doc = new Document({
   creator: "Saanvi Sharma, Sruthi Pyda, Ruchika Tuteja",
-  title: "Deciding When Not to Repair",
+  title: "Calibrated Uncertainty and Explicit Costs for Action Selection in Tabular Data Cleaning",
   sections: [
     { /* title: one column */
       properties: { page: { size: PG, margin: { ...MAR, top: 27 * PT } }, column: { count: 1 } },
       children: [
         new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 60 },
-          children: [run("Deciding When Not to Repair: Calibrated, Cost-Sensitive Action Selection for Tabular Data Cleaning",
+          children: [run("Calibrated Uncertainty and Explicit Costs for Action Selection in Tabular Data Cleaning",
             { size: 48 })] }),
       ],
     },
@@ -454,6 +454,6 @@ const doc = new Document({
 });
 
 Packer.toBuffer(doc).then(b => {
-  fs.writeFileSync("paper/Deciding_When_Not_To_Repair.docx", b);
-  console.log("wrote paper/Deciding_When_Not_To_Repair.docx", b.length, "bytes");
+  fs.writeFileSync("paper/Calibrated_Costs_Action_Selection.docx", b);
+  console.log("wrote paper/Calibrated_Costs_Action_Selection.docx", b.length, "bytes");
 });
