@@ -56,3 +56,4 @@ coverage.xml
 
 # PowerPoint lock files
 ~$*
+node_modules/

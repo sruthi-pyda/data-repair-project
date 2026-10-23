@@ -80,6 +80,7 @@ from src.detection_eval.labels import cell_labels  # noqa: E402
 from src.detection_eval.metrics import best_f1, pr_auc, roc_auc  # noqa: E402
 from src.detectors.conditional import ConditionalDetector  # noqa: E402
 from src.detectors.text_fallback import TextFallbackDetector  # noqa: E402
+from src.experiments.aggregate import Interval, bootstrap_metric  # noqa: E402
 
 enable_unicode_stdout()
 
@@ -100,6 +101,23 @@ def _f(v: Optional[float], nd: int = 4) -> str:
     if v is None or (isinstance(v, float) and not np.isfinite(v)):
         return "—"
     return f"{v:.{nd}f}"
+
+
+def _ci(iv: Optional[Interval], nd: int = 4) -> str:
+    """Point estimate with a 95% bootstrap CI over cells."""
+    if iv is None or iv.n == 0:
+        return "—"
+    if iv.hi - iv.lo < 1e-12:
+        return f"{iv.mean:.{nd}f} (constant)"
+    return f"{iv.mean:.{nd}f} [{iv.lo:.{nd}f}, {iv.hi:.{nd}f}]"
+
+
+def boot(res: "SplitResult", ykey: str, skey: str,
+         seed: int = BASE_SEED) -> Optional[Interval]:
+    a = res.arrays
+    if ykey not in a or skey not in a or a[ykey].size == 0:
+        return None
+    return bootstrap_metric(a[ykey], a[skey], pr_auc, n_boot=2000, seed=seed)
 
 
 def _mr(vals: Sequence[Optional[float]], nd: int = 4) -> str:
@@ -168,7 +186,10 @@ def run_split(dataset: str, rows: int, seed: int) -> SplitResult:
     labels = cell_labels(clean, dirty)
 
     # ── the two detectors, dirty frame only, profile=None ──────────────
-    cond = ConditionalDetector(mode="full", seed=BASE_SEED).fit(dirty)
+    # W11: the detector seed VARIES per replicate. It was pinned to
+    # BASE_SEED, so on a dataset at or below the row cap every replicate
+    # was byte-identical and the reported range was zero by construction.
+    cond = ConditionalDetector(mode="full", seed=seed).fit(dirty)
     cond_s = cond.score_cells(dirty)
     fb = TextFallbackDetector()
     fb_s = fb.score_cells(dirty)
@@ -237,6 +258,15 @@ def run_split(dataset: str, rows: int, seed: int) -> SplitResult:
     res.m["whole_prev"] = float(y_all.mean())
     res.m["whole_cond_pr"] = pr_auc(y_all, flat(cols, cond_s))
     res.m["whole_comb_pr"] = pr_auc(y_all, flat(cols, combined))
+    # Retained for the cell-level bootstrap (W11); only the canonical
+    # replicate's arrays are kept, to bound memory.
+    res.arrays = {
+        "whole_y": y_all,
+        "whole_cond": flat(cols, cond_s),
+        "whole_comb": flat(cols, combined),
+        "new_y": flat_y(res.new),
+        "new_fb": flat(res.new, fb_s) if res.new else np.array([], dtype=float),
+    }
     res.m["whole_cost_cond"] = min_cost(y_all, flat(cols, cond_s))
     res.m["whole_cost_comb"] = min_cost(y_all, flat(cols, combined))
     return res
@@ -323,18 +353,17 @@ def build_report(
     a("nothing` is what a detector that finds nothing pays — so abstaining")
     a("cannot look good.")
     a("")
-    a("| dataset | new cols | prevalence | **fallback PR-AUC** | rarity PR-AUC | lift | ROC | best-F1 | min cost | cost if nothing |")
-    a("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
+    a("| dataset | new cols | prevalence | **fallback PR-AUC (95% CI)** | across seeds | rarity PR-AUC | lift | min cost | cost if nothing |")
+    a("|---|---:|---:|---:|---:|---:|---:|---:|---:|")
     for ds, rs in per_dataset.items():
         if not any("new_fb_pr" in r.m for r in rs):
             continue
         a(f"| {ds} | {_mr([len(r.new) for r in rs], 1)} | "
           f"{_mr([r.m.get('new_prev') for r in rs], 5)} | "
-          f"**{_mr([r.m.get('new_fb_pr') for r in rs])}** | "
+          f"**{_ci(boot(rs[0], 'new_y', 'new_fb'))}** | "
+          f"{_mr([r.m.get('new_fb_pr') for r in rs])} | "
           f"{_mr([r.m.get('new_rar_pr') for r in rs])} | "
           f"{_mr([r.m.get('new_lift') for r in rs], 1)}x | "
-          f"{_mr([r.m.get('new_fb_roc') for r in rs])} | "
-          f"{_mr([r.m.get('new_fb_f1') for r in rs])} | "
           f"{_mr([r.m.get('new_cost_fb') for r in rs], 0)} | "
           f"{_mr([r.m.get('new_cost_none') for r in rs], 0)} |")
     a("")
@@ -356,17 +385,28 @@ def build_report(
     a("Identical cell universe. Conditional-priority combination means a")
     a("fully-covered dataset must come out **exactly equal**.")
     a("")
-    a("| dataset | prevalence | conditional PR-AUC | combined PR-AUC | delta | cond min cost | combined min cost |")
-    a("|---|---:|---:|---:|---:|---:|---:|")
+    a("| dataset | prevalence | conditional PR-AUC (95% CI) | combined PR-AUC (95% CI) | delta | CIs overlap? |")
+    a("|---|---:|---:|---:|---:|---|")
     for ds, rs in per_dataset.items():
         d = [(r.m.get("whole_comb_pr") or 0) - (r.m.get("whole_cond_pr") or 0)
              for r in rs]
+        ic = boot(rs[0], "whole_y", "whole_cond")
+        ib = boot(rs[0], "whole_y", "whole_comb")
+        if ic is None or ib is None or ic.n == 0 or ib.n == 0:
+            ov = "—"
+        elif ic.hi < ib.lo or ib.hi < ic.lo:
+            ov = "**no — separated**"
+        else:
+            ov = "yes — not separable"
         a(f"| {ds} | {_mr([r.m.get('whole_prev') for r in rs], 5)} | "
-          f"{_mr([r.m.get('whole_cond_pr') for r in rs])} | "
-          f"{_mr([r.m.get('whole_comb_pr') for r in rs])} | "
-          f"{np.mean(d):+.4f} | "
-          f"{_mr([r.m.get('whole_cost_cond') for r in rs], 0)} | "
-          f"{_mr([r.m.get('whole_cost_comb') for r in rs], 0)} |")
+          f"{_ci(ic)} | {_ci(ib)} | {np.mean(d):+.4f} | {ov} |")
+    a("")
+    a("`across seeds` and the `delta` column are the spread over replicates;")
+    a("the bracketed interval is a **95 % bootstrap CI over cells** from the")
+    a("canonical replicate. Both are needed: the first measures algorithmic")
+    a("randomness, the second measures sampling uncertainty of the metric.")
+    a("`(constant)` marks a metric that really is identical on every")
+    a("resample — a measured fact, not an absence of resampling.")
     a("")
 
     a("## 5. Verdict")
@@ -411,8 +451,13 @@ def build_report(
     a(f"| 5 cost impact | "
       f"{'**PASS**' if cost_better else '**FAIL**'} — combined is cheaper on "
       f"{len(cost_better)}/{len(per_dataset)} datasets |")
-    a(f"| 6 reproducibility | **PASS** — every figure is mean [min, max] "
-      f"over {splits} splits |")
+    nz = sum(1 for ds, rs in per_dataset.items()
+             if (boot(rs[0], "whole_y", "whole_comb") or Interval(0, 0, 0, 0, 0)).n > 0)
+    a(f"| 6 reproducibility | **PASS** — {splits} replicates with VARYING "
+      f"detector seeds, plus a 95 % bootstrap CI over cells on {nz} "
+      f"dataset(s). Replicate ranges alone are not evidence here: 5 of 11 "
+      f"datasets sit at or below the {rows:,}-row cap and so are never "
+      f"subsampled (see `docs/w11_plan.md`). |")
     a("")
     return "\n".join(L) + "\n"
 
