@@ -1,0 +1,573 @@
+<title>Repair, Review, or Leave</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<style>
+/* Layout: narration scrolls in the left column while an instrument panel
+   stays pinned on the right; collapses to one column under 900px. */
+:root{
+  --bg:#f6f7f9; --panel:#ffffff; --sunk:#eef0f4;
+  --fg:#15181d; --fg-dim:#5a616e; --fg-faint:#878e9c;
+  --line:#dcdfe6; --line-strong:#c2c7d2;
+  --accent:#1f4ed8; --accent-soft:#e6ecfd;
+  --repair:#0f7a52; --repair-soft:#e2f3ec;
+  --review:#9a6400; --review-soft:#fbeedb;
+  --leave:#415a77; --leave-soft:#e7edf4;
+  --flag:#b4530a;
+  --display:"IBM Plex Sans Condensed","Helvetica Neue",Arial,sans-serif;
+  --body:"IBM Plex Sans","Helvetica Neue",Arial,sans-serif;
+  --mono:"IBM Plex Mono","SFMono-Regular",Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0f1216; --panel:#171b21; --sunk:#1e232b;
+  --fg:#e8eaee; --fg-dim:#a3abb8; --fg-faint:#78808d;
+  --line:#2a303a; --line-strong:#3a424f;
+  --accent:#7fa3ff; --accent-soft:#1b2740;
+  --repair:#4fc08d; --repair-soft:#132a21;
+  --review:#e0a944; --review-soft:#2b2214;
+  --leave:#8fa9c4; --leave-soft:#1a222c;
+  --flag:#e8884a;
+  color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#0f1216; --panel:#171b21; --sunk:#1e232b;
+  --fg:#e8eaee; --fg-dim:#a3abb8; --fg-faint:#78808d;
+  --line:#2a303a; --line-strong:#3a424f;
+  --accent:#7fa3ff; --accent-soft:#1b2740;
+  --repair:#4fc08d; --repair-soft:#132a21;
+  --review:#e0a944; --review-soft:#2b2214;
+  --leave:#8fa9c4; --leave-soft:#1a222c;
+  --flag:#e8884a;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1,h2,h3,.eyebrow{font-family:var(--display);text-wrap:balance}
+h1{font-size:clamp(2rem,5.2vw,3.4rem);line-height:1.04;letter-spacing:-.02em;font-weight:700;margin:0 0 .5rem}
+h2{font-size:clamp(1.4rem,3vw,2rem);line-height:1.12;letter-spacing:-.01em;font-weight:700;margin:0 0 .4rem}
+h3{font-size:1.05rem;font-weight:600;margin:0 0 .3rem}
+p{margin:0 0 .85rem;max-width:62ch}
+a{color:var(--accent)}
+.eyebrow{font-size:.74rem;text-transform:uppercase;letter-spacing:.13em;color:var(--fg-faint);font-weight:600;margin:0 0 .5rem}
+.lede{font-size:1.08rem;color:var(--fg-dim);max-width:60ch}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:500}
+
+/* ---- skip nav ---- */
+nav.skip{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--bg);border-bottom:1px solid var(--line)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:21;background:var(--bg)}
+nav.skip .wrap{display:flex;gap:.2rem;align-items:center;padding-block:.5rem;overflow-x:auto}
+nav.skip a{font-family:var(--display);font-size:.8rem;font-weight:600;text-decoration:none;color:var(--fg-dim);padding:.3rem .6rem;border-radius:5px;white-space:nowrap}
+nav.skip a:hover{background:var(--sunk);color:var(--fg)}
+nav.skip .brand{font-family:var(--display);font-weight:700;font-size:.85rem;margin-right:.5rem;white-space:nowrap}
+
+/* ---- hero ---- */
+header.hero .wrap{padding-block:clamp(2.2rem,6vw,4rem)}
+.thesis{border-left:3px solid var(--accent);padding-left:1rem;margin:1.4rem 0 0;max-width:58ch}
+.thesis p{margin:0;font-size:1.05rem}
+.facts{display:flex;flex-wrap:wrap;gap:.5rem 1.6rem;margin-top:1.6rem;padding-top:1.2rem;border-top:1px solid var(--line)}
+.fact{min-width:0}
+.fact .k{font-size:.7rem;text-transform:uppercase;letter-spacing:.1em;color:var(--fg-faint);font-family:var(--display);font-weight:600}
+.fact .v{font-family:var(--mono);font-size:1.15rem;font-weight:600;font-variant-numeric:tabular-nums}
+
+section{border-top:1px solid var(--line)}
+section>.wrap{padding-block:clamp(2rem,5vw,3.4rem)}
+
+/* ---- rare vs wrong ---- */
+.versus{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem;margin-top:1.4rem}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:1.1rem;min-width:0}
+.card .val{font-family:var(--mono);font-size:1.5rem;font-weight:600;word-break:break-word}
+.card .meta{font-size:.82rem;color:var(--fg-dim);margin-top:.3rem}
+.verdict{margin-top:.8rem;padding-top:.7rem;border-top:1px dashed var(--line);font-size:.86rem;font-weight:600}
+.v-wrong{color:var(--flag)} .v-ok{color:var(--repair)}
+.pill{display:inline-block;font-family:var(--mono);font-size:.7rem;font-weight:600;padding:.12rem .45rem;border-radius:4px;letter-spacing:.02em}
+.pill-rare{background:var(--sunk);color:var(--fg-dim);border:1px solid var(--line-strong)}
+
+/* ---- scrolly ---- */
+.scrolly{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:2.2rem;align-items:start}
+.steps{min-width:0}
+.step{padding:1.1rem 0;border-bottom:1px solid var(--line)}
+.step:last-child{border-bottom:0}
+.step .n{font-family:var(--mono);font-size:.74rem;color:var(--fg-faint);font-weight:600}
+.step h3{margin:.15rem 0 .35rem}
+.step p{font-size:.93rem;color:var(--fg-dim);margin:0;max-width:46ch}
+.step.on .n{color:var(--accent)}
+.step.on h3{color:var(--fg)}
+.step{opacity:.62;transition:opacity .35s ease}
+.step.on{opacity:1}
+.stage{position:sticky;top:calc(env(safe-area-inset-top,0px) + 56px);background:var(--panel);border:1px solid var(--line);border-radius:11px;overflow:hidden;min-width:0}
+.stage-hd{display:flex;justify-content:space-between;align-items:baseline;gap:.6rem;padding:.7rem .95rem;border-bottom:1px solid var(--line);background:var(--sunk)}
+.stage-hd .t{font-family:var(--display);font-weight:700;font-size:.9rem}
+.stage-hd .s{font-family:var(--mono);font-size:.72rem;color:var(--fg-faint)}
+.stage-body{padding:.95rem}
+.row{display:flex;justify-content:space-between;gap:.8rem;padding:.3rem 0;font-size:.86rem;border-bottom:1px dotted var(--line)}
+.row:last-child{border-bottom:0}
+.row .k{color:var(--fg-dim);min-width:0}
+.row .v{font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:500;text-align:right;white-space:nowrap}
+.sub{font-size:.74rem;color:var(--fg-faint);font-family:var(--display);font-weight:600;text-transform:uppercase;letter-spacing:.09em;margin:.9rem 0 .4rem}
+.sub:first-child{margin-top:0}
+.bar{height:7px;border-radius:4px;background:var(--sunk);overflow:hidden;margin-top:.22rem}
+.bar i{display:block;height:100%;border-radius:4px;background:var(--accent);transition:width .5s cubic-bezier(.2,.7,.3,1)}
+.cellbox{display:flex;align-items:center;gap:.7rem;padding:.6rem .7rem;border-radius:7px;background:var(--sunk);border:1px solid var(--line)}
+.cellbox .cv{font-family:var(--mono);font-size:1.2rem;font-weight:600;word-break:break-word;min-width:0}
+.cellbox.flagged{border-color:var(--flag);box-shadow:inset 0 0 0 1px var(--flag)}
+.ctx{display:flex;flex-wrap:wrap;gap:.25rem;margin-top:.5rem}
+.ctx span{font-family:var(--mono);font-size:.7rem;padding:.14rem .4rem;border-radius:4px;background:var(--sunk);color:var(--fg-dim);border:1px solid var(--line)}
+.ctx span.tgt{background:var(--accent-soft);color:var(--accent);border-color:var(--accent)}
+.cands{display:flex;flex-direction:column;gap:.4rem}
+.cand{display:grid;grid-template-columns:1fr auto;gap:.5rem;align-items:center;font-size:.86rem}
+.cand .cl{font-family:var(--mono);font-weight:500;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.cand.top .cl{color:var(--accent)}
+.costs{display:flex;flex-direction:column;gap:.55rem}
+.cost{display:grid;grid-template-columns:5.4rem 1fr 3.4rem;gap:.55rem;align-items:center;font-size:.84rem}
+.cost .cn{font-family:var(--display);font-weight:600;font-size:.78rem;text-transform:uppercase;letter-spacing:.05em}
+.cost .cb{height:14px;border-radius:4px;background:var(--sunk);overflow:hidden}
+.cost .cb i{display:block;height:100%;transition:width .45s cubic-bezier(.2,.7,.3,1)}
+.cost .cx{font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right;font-weight:500}
+.cost.win .cn{color:var(--fg)}
+.cost:not(.win){opacity:.52}
+.c-auto i{background:var(--repair)} .c-human i{background:var(--review)} .c-leave i{background:var(--leave)}
+.verdictbox{margin-top:.9rem;padding:.75rem .85rem;border-radius:8px;border:1px solid var(--line);background:var(--sunk)}
+.verdictbox .lbl{font-size:.68rem;text-transform:uppercase;letter-spacing:.1em;color:var(--fg-faint);font-family:var(--display);font-weight:600}
+.verdictbox .act{font-family:var(--display);font-weight:700;font-size:1.3rem;line-height:1.15;margin-top:.1rem}
+.verdictbox .why{font-size:.82rem;color:var(--fg-dim);margin-top:.3rem}
+.verdictbox.a-auto{background:var(--repair-soft);border-color:var(--repair)} .verdictbox.a-auto .act{color:var(--repair)}
+.verdictbox.a-human{background:var(--review-soft);border-color:var(--review)} .verdictbox.a-human .act{color:var(--review)}
+.verdictbox.a-leave{background:var(--leave-soft);border-color:var(--leave)} .verdictbox.a-leave .act{color:var(--leave)}
+
+/* ---- sandbox ---- */
+.lab{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:1.6rem;margin-top:1.4rem;align-items:start}
+.ctrls{display:flex;flex-direction:column;gap:1rem}
+.ctrl label{display:flex;justify-content:space-between;font-size:.84rem;font-weight:500;gap:.6rem}
+.ctrl label .cv{font-family:var(--mono);font-variant-numeric:tabular-nums;color:var(--accent);font-weight:600}
+.ctrl input[type=range]{width:100%;margin-top:.35rem;accent-color:var(--accent)}
+.ctrl .hint{font-size:.76rem;color:var(--fg-faint);margin-top:.1rem}
+.picker{display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:.4rem}
+.picker button{font-family:var(--mono);font-size:.74rem;padding:.3rem .55rem;border-radius:5px;border:1px solid var(--line-strong);background:var(--panel);color:var(--fg-dim);cursor:pointer}
+.picker button[aria-pressed=true]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);font-weight:600}
+.map{width:100%;height:auto;display:block;border-radius:9px;border:1px solid var(--line);background:var(--panel)}
+.legend{display:flex;flex-wrap:wrap;gap:.3rem .9rem;margin-top:.5rem;font-size:.76rem;color:var(--fg-dim)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:.3rem;vertical-align:-1px}
+.reset{font-family:var(--display);font-size:.78rem;font-weight:600;background:none;border:1px solid var(--line-strong);color:var(--fg-dim);border-radius:5px;padding:.3rem .6rem;cursor:pointer}
+.reset:hover{background:var(--sunk);color:var(--fg)}
+
+/* ---- tables ---- */
+.tw{overflow-x:auto;margin-top:1rem;border:1px solid var(--line);border-radius:9px;background:var(--panel)}
+table{border-collapse:collapse;width:100%;font-size:.85rem}
+th,td{padding:.48rem .7rem;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-family:var(--display);font-weight:600;font-size:.74rem;text-transform:uppercase;letter-spacing:.07em;color:var(--fg-faint);background:var(--sunk)}
+tr:last-child td{border-bottom:0}
+td.n,th.n{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
+tr.hi td{background:var(--accent-soft)}
+td .good{color:var(--repair);font-weight:600} td .bad{color:var(--flag);font-weight:600}
+.cols2{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem;margin-top:1.1rem}
+.note{font-size:.84rem;color:var(--fg-dim);background:var(--sunk);border-left:3px solid var(--line-strong);padding:.6rem .8rem;border-radius:0 6px 6px 0;margin-top:1rem;max-width:66ch}
+footer{border-top:1px solid var(--line);color:var(--fg-faint);font-size:.82rem}
+footer .wrap{padding-block:1.6rem}
+
+@media (max-width:900px){
+  .scrolly,.lab{grid-template-columns:minmax(0,1fr)}
+  .stage{position:static;margin-bottom:1.2rem}
+  .step{opacity:1}
+}
+@media (prefers-reduced-motion:reduce){
+  *{transition:none!important;animation:none!important}
+  .step{opacity:1}
+}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+</style>
+
+<nav class="skip"><div class="wrap">
+  <span class="brand">Repair · Review · Leave</span>
+  <a href="#problem">The problem</a>
+  <a href="#pipeline">How it works</a>
+  <a href="#lab">Try it</a>
+  <a href="#results">Results</a>
+  <a href="#failed">What failed</a>
+</div></nav>
+
+<header class="hero"><div class="wrap">
+  <p class="eyebrow">Risk-aware data repair · VIT Vellore</p>
+  <h1>Knowing when not to trust a fix</h1>
+  <p class="lede">A spreadsheet has errors in it. Finding them is only half the job — the other half is deciding what to do about each one when you are not sure you are right.</p>
+  <div class="thesis"><p><strong>The claim:</strong> a calibrated probability of being correct, combined with the explicit cost of being wrong, produces better decisions than acting on raw model confidence. The same confidence should lead to different actions when the consequences change.</p></div>
+  <div class="facts" id="hero-facts"></div>
+</div></header>
+
+<section id="problem"><div class="wrap">
+  <p class="eyebrow">The problem</p>
+  <h2>Rare and wrong look identical</h2>
+  <p>Every detector starts from the same instinct: unusual values are suspicious. That instinct is the trap. Both cells below appear <strong>exactly once</strong> in their column, so nothing about their rarity separates them.</p>
+  <div class="versus">
+    <div class="card">
+      <span class="pill pill-rare">appears 1×</span>
+      <div class="val" style="margin-top:.5rem">Bostonn</div>
+      <div class="meta">City column, in a table where <span class="mono">Boston</span> appears 60 times.</div>
+      <div class="verdict v-wrong">Wrong — a typo of a common value</div>
+    </div>
+    <div class="card">
+      <span class="pill pill-rare">appears 1×</span>
+      <div class="val" style="margin-top:.5rem">Ouagadougou</div>
+      <div class="meta">Same column, same frequency, far from every other value.</div>
+      <div class="verdict v-ok">Correct — just uncommon</div>
+    </div>
+  </div>
+  <p style="margin-top:1.2rem">A rarity-based detector flags both or neither. Our text detector separates them by asking a different question: <em>is this value suspiciously close to a common one?</em> A typo sits near a frequent value without equalling it; a legitimately rare value sits far from everything. Measured similarity to the nearest frequent value: <span class="num">0.80+</span> for the typo, <span class="num">under 0.60</span> for the rare city.</p>
+  <div class="note">This is the distinction five earlier attempts in this project failed to make. The section at the end lists them and why each one failed.</div>
+</div></section>
+
+<section id="pipeline"><div class="wrap">
+  <p class="eyebrow">How it works</p>
+  <h2>One cell, seven stages</h2>
+  <p class="lede">Scroll the stages on the left. The panel follows along with the real values from an actual pipeline run.</p>
+  <div class="picker" id="cell-picker" style="margin-top:1.2rem" role="group" aria-label="Choose a cell"></div>
+  <div class="scrolly" style="margin-top:.8rem">
+    <div class="steps" id="steps"></div>
+    <div class="stage">
+      <div class="stage-hd"><span class="t" id="stage-title">The cell</span><span class="s" id="stage-sub"></span></div>
+      <div class="stage-body" id="stage-body"></div>
+    </div>
+  </div>
+</div></section>
+
+<section id="lab"><div class="wrap">
+  <p class="eyebrow">Try it</p>
+  <h2>Change the stakes, change the answer</h2>
+  <p>This is the whole argument in one control. The cell does not change. Its probability of a correct repair <span class="mono">p</span> and its probability of genuine corruption <span class="mono">q</span> do not change. Only the costs change — and the right action flips.</p>
+  <div class="lab">
+    <div>
+      <div class="picker" id="lab-picker" role="group" aria-label="Choose a cell"></div>
+      <div class="ctrls">
+        <div class="ctrl">
+          <label for="c-wrong">Cost of a wrong repair <span class="cv" id="c-wrong-v"></span></label>
+          <input type="range" id="c-wrong" min="1" max="100" step="1">
+          <div class="hint">What it costs when we change a cell and get it wrong.</div>
+        </div>
+        <div class="ctrl">
+          <label for="c-human">Cost of a human review <span class="cv" id="c-human-v"></span></label>
+          <input type="range" id="c-human" min="1" max="50" step="1">
+          <div class="hint">What it costs to put the cell in front of a person.</div>
+        </div>
+        <div class="ctrl">
+          <label for="c-leave">Cost of leaving an error <span class="cv" id="c-leave-v"></span></label>
+          <input type="range" id="c-leave" min="1" max="100" step="1">
+          <div class="hint">Charged only when the cell really was corrupted.</div>
+        </div>
+        <div><button class="reset" id="reset" type="button">Reset to the shipped config</button></div>
+      </div>
+      <div id="lab-verdict" style="margin-top:1rem"></div>
+    </div>
+    <div>
+      <svg class="map" id="map" viewBox="0 0 320 300" role="img" aria-labelledby="map-t"></svg>
+      <h3 id="map-t" style="font-size:.9rem;margin-top:.6rem">Which action wins, everywhere</h3>
+      <div class="legend">
+        <span><i style="background:var(--repair)"></i>Repair it</span>
+        <span><i style="background:var(--review)"></i>Ask a person</span>
+        <span><i style="background:var(--leave)"></i>Leave it</span>
+        <span><i style="background:var(--accent)"></i>This cell</span>
+      </div>
+      <p style="font-size:.84rem;color:var(--fg-dim);margin-top:.6rem">Horizontal: confidence the repair is right. Vertical: probability the cell is genuinely corrupted. The dot is the cell you picked. Move the sliders and the regions redraw.</p>
+    </div>
+  </div>
+  <div class="note"><strong>What is live here:</strong> the decision. It is arithmetic — <span class="mono">(1−p)·C_wrong</span> against <span class="mono">C_human</span> against <span class="mono">q·C_abstain</span>, lowest wins — so the browser recomputes it exactly as the pipeline would. <strong>What is recorded:</strong> <span class="mono">p</span> and <span class="mono">q</span> themselves, the flags, the candidates and the uncertainty signals, all exported from a real run because the models take 20–40 seconds per dataset.</div>
+</div></section>
+
+<section id="results"><div class="wrap">
+  <p class="eyebrow">Results</p>
+  <h2>The decision layer is the part that works</h2>
+  <p>Realised cost in experimental penalty units, lower is better. The last column is how much worse each policy is than the best policy <em>for that dataset</em> — so <span class="num">0</span> means it was never beaten.</p>
+  <div class="tw"><table>
+    <thead><tr><th>Policy</th><th class="n">Adult</th><th class="n">Breast Cancer</th><th class="n">Smart Factory</th><th class="n">Worst-case regret</th></tr></thead>
+    <tbody>
+      <tr class="hi"><td><strong>Calibrated + cost-aware</strong></td><td class="n">0</td><td class="n">1,615</td><td class="n">14,186</td><td class="n"><span class="good">0</span></td></tr>
+      <tr><td>Always ask a person</td><td class="n">11,658</td><td class="n">1,775</td><td class="n">14,186</td><td class="n">11,658</td></tr>
+      <tr><td>Repair if confidence ≥ 0.70</td><td class="n">11,658</td><td class="n">1,720</td><td class="n">14,186</td><td class="n">11,658</td></tr>
+      <tr><td>Always leave it</td><td class="n">0</td><td class="n">3,550</td><td class="n">35,465</td><td class="n">21,279</td></tr>
+      <tr><td>Always repair</td><td class="n">58,290</td><td class="n">5,800</td><td class="n">126,275</td><td class="n"><span class="bad">112,089</span></td></tr>
+    </tbody>
+  </table></div>
+  <p style="margin-top:1rem">Every fixed rule is fine somewhere and badly beaten somewhere else. The adaptive policy is the only one never badly beaten — and it holds up when all clean-data advantages are stripped out of the detector, which is the most aggressive test we could build.</p>
+
+  <div class="cols2">
+    <div class="card">
+      <h3>Covering columns nothing could read</h3>
+      <p style="font-size:.88rem;color:var(--fg-dim)">The conditional model skips high-cardinality text, which is most of a real dirty table. A string-structure detector fills the gap.</p>
+      <div class="row"><span class="k">flights, before</span><span class="v">0.2958 <span style="color:var(--fg-faint)">= chance</span></span></div>
+      <div class="row"><span class="k">flights, after</span><span class="v" style="color:var(--repair)">0.8360</span></div>
+      <div class="row"><span class="k">hospital</span><span class="v">0.2632 → <span style="color:var(--repair)">0.4974</span></span></div>
+      <div class="row"><span class="k">columns newly covered</span><span class="v">29</span></div>
+    </div>
+    <div class="card">
+      <h3>How close to the best possible</h3>
+      <p style="font-size:.88rem;color:var(--fg-dim)">Because we know how the corruption was made, the best achievable score can be computed exactly. Inside the corrupted column we are near it.</p>
+      <div class="row"><span class="k">best possible</span><span class="v">0.7222</span></div>
+      <div class="row"><span class="k">what we reach</span><span class="v">0.5626</span></div>
+      <div class="row"><span class="k">share captured</span><span class="v" style="color:var(--repair)">77.9%</span></div>
+    </div>
+  </div>
+</div></section>
+
+<section id="failed"><div class="wrap">
+  <p class="eyebrow">What failed</p>
+  <h2>Five attempts, one cause</h2>
+  <p>Picking which <em>column</em> to suspect never worked. Five mechanisms were built, pre-registered with conditions that could fail them, and each one did. They failed for the same underlying reason, and finding that is the more useful result.</p>
+  <div class="tw"><table>
+    <thead><tr><th>Attempt</th><th>What it accidentally measured instead</th></tr></thead>
+    <tbody>
+      <tr><td>Likelihood ratio</td><td>how predictable the column is in general</td></tr>
+      <tr><td>Self-supervised injection</td><td>how many distinct values the column has</td></tr>
+      <tr><td>Contamination fraction</td><td>how hard the column is to model</td></tr>
+      <tr><td>Contamination mixture</td><td>the model's own error rate</td></tr>
+      <tr><td>Excess surprise</td><td>the model's own miscalibration</td></tr>
+    </tbody>
+  </table></div>
+  <p style="margin-top:1rem">Each fix removed one nuisance and uncovered the next. At these error rates — as low as 1 cell in 400 — the corruption signal sits underneath all of them. And measuring what perfect column selection would even be <em>worth</em> showed it matters on one dataset out of eleven, because every other one has corruption in most of its columns.</p>
+  <div class="note">These are in the write-up as findings, not omissions. A detector that cannot separate rare from wrong at 0.25% prevalence is a measured limit with an identified mechanism, which is more useful to report than a tuned number.</div>
+</div></section>
+
+<footer><div class="wrap">
+  <p style="margin:0">Risk-aware LLM-assisted data repair. All per-cell values on this page are exported from a real pipeline run (seed 42); the decision arithmetic runs live in your browser. Ground truth appears only in the results section, never beside a cell being decided.</p>
+</div></footer>
+
+<script type="application/json" id="trace">{"datasets":{"breast_cancer":{"n_rows":699,"n_cols":12,"n_cells":8388,"n_flagged":392,"n_decided":355,"calibrator":"isotonic","costs":{"wrong":50.0,"human":5.0,"abstain":10.0},"preview_rows":[{"Unnamed: 0":"0","Sample code number":"1000025","Clump Thickness":"5","Uniformity of Cell Size":1.0,"Uniformity of Cell Shape":1.0,"Marginal Adhesion":"1","Single Epithelial Cell Size":2.0,"Bare Nuclei":"1","Bland Chromatin":3.0,"Normal Nucleoli":"1","Mitoses":1.0,"class":2},{"Unnamed: 0":"1","Sample code number":"1002945","Clump Thickness":"5","Uniformity of Cell Size":4.0,"Uniformity of Cell Shape":4.0,"Marginal Adhesion":"5","Single Epithelial Cell Size":7.0,"Bare Nuclei":"10","Bland Chromatin":33.0,"Normal Nucleoli":"2","Mitoses":1.0,"class":2},{"Unnamed: 0":"2","Sample code number":"1015425","Clump Thickness":"3","Uniformity of Cell Size":1.0,"Uniformity of Cell Shape":1.0,"Marginal Adhesion":"1","Single Epithelial Cell Size":2.0,"Bare Nuclei":"2","Bland Chromatin":8.0,"Normal Nucleoli":"1","Mitoses":1.0,"class":2},{"Unnamed: 0":"3","Sample code number":"101627\u01687","Clump Thickness":"6","Uniformity of Cell Size":8.0,"Uniformity of Cell Shape":8.0,"Marginal Adhesion":"1","Single Epithelial Cell Size":2.0,"Bare Nuclei":"4","Bland Chromatin":3.0,"Normal Nucleoli":"7","Mitoses":1.0,"class":2},{"Unnamed: 0":"4","Sample code number":"1017023","Clump Thickness":"4","Uniformity of Cell Size":1.0,"Uniformity of Cell Shape":1.0,"Marginal Adhesion":"3","Single Epithelial Cell Size":2.0,"Bare Nuclei":"1","Bland Chromatin":3.0,"Normal Nucleoli":null,"Mitoses":1.0,"class":2},{"Unnamed: 0":"5","Sample code number":"1017122","Clump Thickness":"8","Uniformity of Cell Size":10.0,"Uniformity of Cell Shape":10.0,"Marginal Adhesion":"8","Single Epithelial Cell Size":7.0,"Bare Nuclei":null,"Bland Chromatin":9.0,"Normal Nucleoli":"2","Mitoses":1.0,"class":4}],"preview_flagged":[[1,"Bland Chromatin"],[4,"Normal Nucleoli"],[5,"Bare Nuclei"],[6,"Marginal Adhesion"],[7,"Bare Nuclei"]],"columns":["Unnamed: 0","Sample code number","Clump Thickness","Uniformity of Cell Size","Uniformity of Cell Shape","Marginal Adhesion","Single Epithelial Cell Size","Bare Nuclei","Bland Chromatin","Normal Nucleoli","Mitoses","class"]},"smartfactory":{"n_rows":23645,"n_cols":19,"n_cells":449255,"n_flagged":7093,"n_decided":7093,"calibrator":"isotonic","costs":{"wrong":25.0,"human":2.0,"abstain":5.0},"preview_rows":[{"labels":0.0,"i_w_blo_weg":-107.0,"o_w_blo_power":0.0,"o_w_blo_voltage":0.0,"i_w_bhl_weg":0.0,"o_w_bhl_power":0.0,"o_w_bhl_voltage":0.0,"i_w_bhr_weg":-1268.0,"o_w_bhr_power":0.0,"o_w_bhr_voltage":0.0,"i_w_bru_weg":-26.0,"o_w_bru_power":84.0,"o_w_bru_voltage":11.0,"i_w_hr_weg":0.0,"o_w_hr_power":7168.0,"o_w_hr_voltage":26.0,"i_w_hl_weg":0.0,"o_w_hl_power":7720.0,"o_w_hl_voltage":24.0},{"labels":0.0,"i_w_blo_weg":-107.0,"o_w_blo_power":0.0,"o_w_blo_voltage":0.0,"i_w_bhl_weg":0.0,"o_w_bhl_power":null,"o_w_bhl_voltage":0.0,"i_w_bhr_weg":-1268.0,"o_w_bhr_power":0.0,"o_w_bhr_voltage":0.0,"i_w_bru_weg":-26.0,"o_w_bru_power":84.0,"o_w_bru_voltage":11.0,"i_w_hr_weg":0.0,"o_w_hr_power":7168.0,"o_w_hr_voltage":26.0,"i_w_hl_weg":0.0,"o_w_hl_power":7720.0,"o_w_hl_voltage":24.0},{"labels":0.0,"i_w_blo_weg":-107.0,"o_w_blo_power":0.0,"o_w_blo_voltage":0.0,"i_w_bhl_weg":0.0,"o_w_bhl_power":0.0,"o_w_bhl_voltage":0.0,"i_w_bhr_weg":-1268.0,"o_w_bhr_power":0.0,"o_w_bhr_voltage":0.0,"i_w_bru_weg":-26.0,"o_w_bru_power":84.0,"o_w_bru_voltage":11.0,"i_w_hr_weg":0.0,"o_w_hr_power":7168.0,"o_w_hr_voltage":26.0,"i_w_hl_weg":0.0,"o_w_hl_power":7720.0,"o_w_hl_voltage":24.0},{"labels":0.0,"i_w_blo_weg":-107.0,"o_w_blo_power":0.0,"o_w_blo_voltage":0.0,"i_w_bhl_weg":0.0,"o_w_bhl_power":0.0,"o_w_bhl_voltage":0.0,"i_w_bhr_weg":-1268.0,"o_w_bhr_power":0.0,"o_w_bhr_voltage":0.0,"i_w_bru_weg":29.0,"o_w_bru_power":21725.0,"o_w_bru_voltage":54.0,"i_w_hr_weg":0.0,"o_w_hr_power":6726.0,"o_w_hr_voltage":26.0,"i_w_hl_weg":0.0,"o_w_hl_power":10756.0,"o_w_hl_voltage":26.0},{"labels":0.0,"i_w_blo_weg":-107.0,"o_w_blo_power":0.0,"o_w_blo_voltage":0.0,"i_w_bhl_weg":0.0,"o_w_bhl_power":0.0,"o_w_bhl_voltage":0.0,"i_w_bhr_weg":-1268.0,"o_w_bhr_power":0.0,"o_w_bhr_voltage":0.0,"i_w_bru_weg":29.0,"o_w_bru_power":21725.0,"o_w_bru_voltage":54.0,"i_w_hr_weg":0.0,"o_w_hr_power":6726.0,"o_w_hr_voltage":26.0,"i_w_hl_weg":0.0,"o_w_hl_power":10756.0,"o_w_hl_voltage":26.0},{"labels":0.0,"i_w_blo_weg":-107.0,"o_w_blo_power":0.0,"o_w_blo_voltage":0.0,"i_w_bhl_weg":0.0,"o_w_bhl_power":0.0,"o_w_bhl_voltage":0.0,"i_w_bhr_weg":-1268.0,"o_w_bhr_power":0.0,"o_w_bhr_voltage":null,"i_w_bru_weg":29.0,"o_w_bru_power":21725.0,"o_w_bru_voltage":54.0,"i_w_hr_weg":0.0,"o_w_hr_power":6726.0,"o_w_hr_voltage":26.0,"i_w_hl_weg":0.0,"o_w_hl_power":10756.0,"o_w_hl_voltage":26.0}],"preview_flagged":[[1,"o_w_bhl_power"],[5,"o_w_bhr_voltage"]],"columns":["labels","i_w_blo_weg","o_w_blo_power","o_w_blo_voltage","i_w_bhl_weg","o_w_bhl_power","o_w_bhl_voltage","i_w_bhr_weg","o_w_bhr_power","o_w_bhr_voltage","i_w_bru_weg","o_w_bru_power","o_w_bru_voltage","i_w_hr_weg","o_w_hr_power","o_w_hr_voltage","i_w_hl_weg","o_w_hl_power","o_w_hl_voltage"]},"adult":{"n_rows":45222,"n_cols":15,"n_cells":678330,"n_flagged":5829,"n_decided":5829,"calibrator":"base-rate fallback (no calibrator fitted)","costs":{"wrong":10.0,"human":2.0,"abstain":5.0},"preview_rows":[{"age":25,"workclass":"Private","fnlwgt":226802,"education":"11th","educational_num":7,"marital_status":"Never-married","occupation":"Machine-op-inspct","relationship":"Own-child","race":"Black","gender":"Male","capital_gain":0,"capital_loss":0,"hours_per_week":40,"native_country":"United-States","income":1},{"age":38,"workclass":"Private","fnlwgt":89814,"education":"HS-grad","educational_num":9,"marital_status":"Married-civ-spouse","occupation":"Farming-fishing","relationship":"Husband","race":"White","gender":"Male","capital_gain":0,"capital_loss":0,"hours_per_week":50,"native_country":"United-States","income":1},{"age":28,"workclass":"Local-gov","fnlwgt":336951,"education":"Assoc-acdm","educational_num":12,"marital_status":"Married-civ-spouse","occupation":"Protective-serv","relationship":"Husband","race":"White","gender":"Male","capital_gain":0,"capital_loss":0,"hours_per_week":40,"native_country":"United-States","income":0},{"age":44,"workclass":"Private","fnlwgt":160323,"education":"Some-college","educational_num":10,"marital_status":"Married-civ-spouse","occupation":"Machine-op-inspct","relationship":"Husband","race":"Black","gender":"Male","capital_gain":7688,"capital_loss":0,"hours_per_week":40,"native_country":"United-States","income":0},{"age":34,"workclass":"Private","fnlwgt":198693,"education":"10th","educational_num":6,"marital_status":"Never-married","occupation":"Other-service","relationship":"Not-in-family","race":"White","gender":"Male","capital_gain":0,"capital_loss":0,"hours_per_week":30,"native_country":"United-States","income":1},{"age":63,"workclass":"Self-emp-not-inc","fnlwgt":104626,"education":"Prof-school","educational_num":15,"marital_status":"Married-civ-spouse","occupation":"Prof-specialty","relationship":"Husband","race":"White","gender":"Male","capital_gain":3103,"capital_loss":0,"hours_per_week":32,"native_country":"United-States","income":0}],"preview_flagged":[[7,"hours_per_week"]],"columns":["age","workclass","fnlwgt","education","educational_num","marital_status","occupation","relationship","race","gender","capital_gain","capital_loss","hours_per_week","native_country","income"]}},"cells":[{"row_id":36,"column":"Clump Thickness","dirty_value":"1a0","detection":{"method":"format_check","score":0.85,"error_type":"FORMAT_ERROR","reason":"Column 'Clump Thickness' is numerical (dtype int64) but dirty value '1a0' cannot be parsed as a number."},"candidates":[{"value":10,"probability":0.454466},{"value":1,"probability":0.371407},{"value":4,"probability":0.174127}],"repair_method":"format_numerical_repair","uncertainty":{"raw_confidence":0.454466,"self_consistency":1.0,"entropy":1.030638,"normalized_entropy":0.938127,"n_candidates":3},"calibration":{"raw":0.454466,"p":0.5530303030303032,"shift":0.09856430303030322},"q":0.6666666666666666,"expected_costs":{"auto":22.34848484848484,"human":5.0,"abstain":6.666666666666666},"action":"HUMAN_REVIEW","context":[{"column":"Unnamed: 0","value":"36","is_target":false},{"column":"Sample code number","value":"1080185","is_target":false},{"column":"Clump Thickness","value":"1a0","is_target":true},{"column":"Uniformity of Cell Size","value":10.0,"is_target":false},{"column":"Uniformity of Cell Shape","value":10.0,"is_target":false},{"column":"Marginal Adhesion","value":"1","is_target":false},{"column":"Single Epithelial Cell Size","value":6.0,"is_target":false},{"column":"Bare Nuclei","value":"1","is_target":false},{"column":"Bland Chromatin","value":null,"is_target":false},{"column":"Normal Nucleoli","value":"9","is_target":false},{"column":"Mitoses","value":1.0,"is_target":false},{"column":"class","value":4,"is_target":false}],"dataset":"breast_cancer"},{"row_id":1,"column":"Bland Chromatin","dirty_value":33.0,"detection":{"method":"range_check","score":0.9,"error_type":"OUT_OF_RANGE","reason":"Value 33.0 is outside the observed clean range [1.0, 10.0] for column 'Bland Chromatin'."},"candidates":[{"value":3,"probability":0.713407},{"value":10,"probability":0.286593}],"repair_method":"range_normalisation_repair","uncertainty":{"raw_confidence":0.713407,"self_consistency":1.0,"entropy":0.599073,"normalized_entropy":0.864279,"n_candidates":2},"calibration":{"raw":0.713407,"p":0.9473684210526315,"shift":0.2339614210526315},"q":0.9894736842105263,"expected_costs":{"auto":2.631578947368424,"human":5.0,"abstain":9.894736842105264},"action":"ACCEPT_REPAIR","context":[{"column":"Unnamed: 0","value":"1","is_target":false},{"column":"Sample code number","value":"1002945","is_target":false},{"column":"Clump Thickness","value":"5","is_target":false},{"column":"Uniformity of Cell Size","value":4.0,"is_target":false},{"column":"Uniformity of Cell Shape","value":4.0,"is_target":false},{"column":"Marginal Adhesion","value":"5","is_target":false},{"column":"Single Epithelial Cell Size","value":7.0,"is_target":false},{"column":"Bare Nuclei","value":"10","is_target":false},{"column":"Bland Chromatin","value":33.0,"is_target":true},{"column":"Normal Nucleoli","value":"2","is_target":false},{"column":"Mitoses","value":1.0,"is_target":false},{"column":"class","value":2,"is_target":false}],"dataset":"breast_cancer"},{"row_id":5,"column":"Bare Nuclei","dirty_value":null,"detection":{"method":"missing_value","score":1.0,"error_type":"MISSING","reason":"Cell is NaN"},"candidates":[{"value":"1","probability":0.615165},{"value":"10","probability":0.269441},{"value":"2","probability":0.115394}],"repair_method":"frequency_repair","uncertainty":{"raw_confidence":0.615165,"self_consistency":1.0,"entropy":0.901416,"normalized_entropy":0.820504,"n_candidates":3},"calibration":{"raw":0.615165,"p":0.5530303030303032,"shift":-0.06213469696969676},"q":0.9942528735632183,"expected_costs":{"auto":22.34848484848484,"human":5.0,"abstain":9.942528735632184},"action":"HUMAN_REVIEW","context":[{"column":"Unnamed: 0","value":"5","is_target":false},{"column":"Sample code number","value":"1017122","is_target":false},{"column":"Clump Thickness","value":"8","is_target":false},{"column":"Uniformity of Cell Size","value":10.0,"is_target":false},{"column":"Uniformity of Cell Shape","value":10.0,"is_target":false},{"column":"Marginal Adhesion","value":"8","is_target":false},{"column":"Single Epithelial Cell Size","value":7.0,"is_target":false},{"column":"Bare Nuclei","value":null,"is_target":true},{"column":"Bland Chromatin","value":9.0,"is_target":false},{"column":"Normal Nucleoli","value":"2","is_target":false},{"column":"Mitoses","value":1.0,"is_target":false},{"column":"class","value":4,"is_target":false}],"dataset":"breast_cancer"},{"row_id":682,"column":"fnlwgt","dirty_value":652784,"detection":{"method":"iqr_outlier","score":0.4942,"error_type":"STATISTICAL_OUTLIER","reason":"Value 652784 is beyond the IQR fence [-244225.00, 599539.25] (Q1=117388.25, Q3=237926.0, IQR=120537.75, k=3.0)."},"candidates":[{"value":178316,"probability":0.532969},{"value":117388,"probability":0.292135},{"value":237926,"probability":0.174897}],"repair_method":"statistical_repair","uncertainty":{"raw_confidence":0.532969,"self_consistency":1.0,"entropy":0.99982,"normalized_entropy":0.910075,"n_candidates":3},"calibration":{"raw":0.532969,"p":1.7039839294624574e-09,"shift":-0.5329689982960161},"q":0.0002449179524859172,"expected_costs":{"auto":9.99999998296016,"human":2.0,"abstain":0.0012245897624295861},"action":"LEAVE_UNCHANGED","context":[{"column":"age","value":47,"is_target":false},{"column":"workclass","value":"Private","is_target":false},{"column":"fnlwgt","value":652784,"is_target":true},{"column":"education","value":"10th","is_target":false},{"column":"educational_num","value":6,"is_target":false},{"column":"marital_status","value":"Married-civ-spouse","is_target":false},{"column":"occupation","value":"Machine-op-inspct","is_target":false},{"column":"relationship","value":"Husband","is_target":false},{"column":"race","value":"White","is_target":false},{"column":"gender","value":"Male","is_target":false},{"column":"capital_gain","value":0,"is_target":false},{"column":"capital_loss","value":0,"is_target":false}],"dataset":"adult"},{"row_id":29,"column":"i_w_bhl_weg","dirty_value":null,"detection":{"method":"missing_value","score":1.0,"error_type":"MISSING","reason":"Cell is NaN"},"candidates":[{"value":0,"probability":0.532992},{"value":-321,"probability":0.32016},{"value":450,"probability":0.146848}],"repair_method":"statistical_repair","uncertainty":{"raw_confidence":0.532992,"self_consistency":1.0,"entropy":0.981733,"normalized_entropy":0.893612,"n_candidates":3},"calibration":{"raw":0.532992,"p":0.11430527036276524,"shift":-0.4186867296372348},"q":0.9997987117552335,"expected_costs":{"auto":22.142368240930868,"human":2.0,"abstain":4.998993558776167},"action":"HUMAN_REVIEW","context":[{"column":"labels","value":0.0,"is_target":false},{"column":"i_w_blo_weg","value":-107.0,"is_target":false},{"column":"o_w_blo_power","value":0.0,"is_target":false},{"column":"o_w_blo_voltage","value":0.0,"is_target":false},{"column":"i_w_bhl_weg","value":null,"is_target":true},{"column":"o_w_bhl_power","value":0.0,"is_target":false},{"column":"o_w_bhl_voltage","value":0.0,"is_target":false},{"column":"i_w_bhr_weg","value":210.0,"is_target":false},{"column":"o_w_bhr_power","value":23722.0,"is_target":false},{"column":"o_w_bhr_voltage","value":58.0,"is_target":false},{"column":"i_w_bru_weg","value":571.0,"is_target":false},{"column":"o_w_bru_power","value":4340.0,"is_target":false}],"dataset":"smartfactory"}]}</script>
+<script>
+(function(){
+  "use strict";
+  var T = JSON.parse(document.getElementById("trace").textContent);
+  var CELLS = T.cells, DS = T.datasets;
+  var fmt = function(x,d){ return (x===null||x===undefined||!isFinite(x)) ? "—" : Number(x).toFixed(d===undefined?3:d); };
+  var grp = function(n){ return (n===null||n===undefined)?"—":Number(n).toLocaleString("en-US"); };
+  var show = function(v){ return (v===null||v===undefined||v==="")?"(empty)":String(v); };
+
+  /* ---------- hero facts ---------- */
+  (function(){
+    var bc = DS["breast_cancer"], tot=0, flag=0;
+    Object.keys(DS).forEach(function(k){ tot+=DS[k].n_cells; flag+=DS[k].n_flagged; });
+    var f=[["Datasets",String(Object.keys(DS).length)],["Cells examined",grp(tot)],
+           ["Cells flagged",grp(flag)],["Decisions made",grp(Object.keys(DS).reduce(function(a,k){return a+DS[k].n_decided;},0))],
+           ["Calibrator on breast cancer",bc?bc.calibrator:"—"]];
+    document.getElementById("hero-facts").innerHTML = f.map(function(p){
+      return '<div class="fact"><div class="k">'+p[0]+'</div><div class="v">'+p[1]+'</div></div>';
+    }).join("");
+  })();
+
+  /* ---------- the seven stages ---------- */
+  var STEPS = [
+    {t:"Learn what normal looks like",d:"Before judging anything, profile each column: what type it holds, its usual range, its vocabulary. This is the yardstick everything later is measured against."},
+    {t:"Flag what looks wrong",d:"Six checks run over every cell of every column — missing tokens, values out of range, statistical outliers, broken formats, unseen categories, stray whitespace. Nothing is repaired yet."},
+    {t:"Propose repairs",d:"For a flagged cell, generate candidate replacements with a probability on each, using the rest of the row and what the column normally contains."},
+    {t:"Measure how unsure we are",d:"Three separate signals: the top candidate's own confidence, how often repeated attempts agree, and how spread out the probability is across candidates."},
+    {t:"Turn confidence into a real probability",d:"Raw model confidence is systematically wrong. Calibration maps it onto a probability that means what it says — if it claims 0.8, it should be right about 80% of the time."},
+    {t:"Ask whether the cell is broken at all",d:"A flag is not proof. A second calibrated probability, q, estimates how often cells caught by this particular check turn out to be genuinely corrupted."},
+    {t:"Decide, by expected cost",d:"Three expected costs, one per action. The cheapest wins. This is the only stage that makes a choice, and it is the only one a cost change can flip."}
+  ];
+
+  var cur = 0, step = 0;
+
+  function cellLabel(c){ return c.column + " = " + show(c.dirty_value); }
+
+  function renderPickers(){
+    var html = CELLS.map(function(c,i){
+      return '<button type="button" data-i="'+i+'" aria-pressed="'+(i===cur)+'">'+
+        c.dataset.replace("_"," ")+" · "+c.column+'</button>';
+    }).join("");
+    ["cell-picker","lab-picker"].forEach(function(id){
+      var el=document.getElementById(id); el.innerHTML=html;
+      el.querySelectorAll("button").forEach(function(b){
+        b.addEventListener("click",function(){ cur=+b.dataset.i; renderPickers(); renderStage(); renderLab(); });
+      });
+    });
+  }
+
+  function renderSteps(){
+    document.getElementById("steps").innerHTML = STEPS.map(function(s,i){
+      return '<div class="step'+(i===step?" on":"")+'" data-s="'+i+'">'+
+        '<div class="n">Stage '+(i+1)+' of 7</div><h3>'+s.t+'</h3><p>'+s.d+'</p></div>';
+    }).join("");
+    if ("IntersectionObserver" in window){
+      var io = new IntersectionObserver(function(es){
+        es.forEach(function(e){ if(e.isIntersecting){ step=+e.target.dataset.s; markSteps(); renderStage(); } });
+      },{rootMargin:"-45% 0px -45% 0px",threshold:0});
+      document.querySelectorAll(".step").forEach(function(el){ io.observe(el); });
+    }
+  }
+  function markSteps(){
+    document.querySelectorAll(".step").forEach(function(el){
+      el.classList.toggle("on", +el.dataset.s===step);
+    });
+  }
+
+  function barRow(k,v,frac,color){
+    return '<div class="row"><span class="k">'+k+'</span><span class="v">'+v+'</span></div>'+
+      '<div class="bar"><i style="width:'+Math.max(0,Math.min(100,frac*100))+'%'+(color?';background:'+color:"")+'"></i></div>';
+  }
+
+  function renderStage(){
+    var c = CELLS[cur], d = DS[c.dataset], b = document.getElementById("stage-body");
+    document.getElementById("stage-sub").textContent = c.dataset.replace("_"," ")+" · row "+grp(c.row_id);
+    var titles=["Columns profiled","Detection","Candidate repairs","Uncertainty","Calibration","Is it really broken?","The decision"];
+    document.getElementById("stage-title").textContent = titles[step];
+    var h = "";
+
+    // The cell is always visible, so the panel is never blank.
+    h += '<div class="cellbox'+(step>=1?" flagged":"")+'"><div><div class="sub" style="margin:0 0 .15rem">'+
+         c.column+'</div><div class="cv">'+show(c.dirty_value)+'</div></div></div>';
+
+    if(step===0){
+      h += '<div class="sub">Rest of the row</div><div class="ctx">'+
+        c.context.map(function(x){ return '<span class="'+(x.is_target?"tgt":"")+'">'+x.column+": "+show(x.value)+"</span>"; }).join("")+'</div>';
+      h += '<div class="sub">This table</div>'+
+        '<div class="row"><span class="k">Rows × columns</span><span class="v">'+grp(d.n_rows)+" × "+d.n_cols+'</span></div>'+
+        '<div class="row"><span class="k">Cells examined</span><span class="v">'+grp(d.n_cells)+'</span></div>';
+    } else if(step===1){
+      h += '<div class="sub">What fired</div>'+
+        '<div class="row"><span class="k">Check</span><span class="v">'+c.detection.method+'</span></div>'+
+        '<div class="row"><span class="k">Error type</span><span class="v">'+c.detection.error_type+'</span></div>'+
+        barRow("Detector score",fmt(c.detection.score),c.detection.score,"var(--flag)");
+      h += '<div class="sub">Why</div><p style="font-size:.82rem;color:var(--fg-dim);margin:0">'+c.detection.reason+'</p>';
+      h += '<div class="sub">Across the table</div><div class="row"><span class="k">Cells flagged</span><span class="v">'+grp(d.n_flagged)+'</span></div>';
+    } else if(step===2){
+      h += '<div class="sub">Candidates, most likely first</div><div class="cands">'+
+        c.candidates.map(function(x,i){
+          return '<div class="cand'+(i===0?" top":"")+'"><span class="cl">'+show(x.value)+
+            '</span><span class="num">'+fmt(x.probability)+'</span>'+
+            '<div class="bar" style="grid-column:1/-1"><i style="width:'+(x.probability*100)+'%"></i></div></div>';
+        }).join("")+'</div>';
+      h += '<div class="row" style="margin-top:.6rem"><span class="k">Method</span><span class="v">'+c.repair_method+'</span></div>';
+    } else if(step===3){
+      var u=c.uncertainty;
+      h += '<div class="sub">Three signals</div>'+
+        barRow("Top-candidate confidence",fmt(u.raw_confidence),u.raw_confidence)+
+        barRow("Agreement across attempts",fmt(u.self_consistency),u.self_consistency)+
+        barRow("Spread across candidates",fmt(u.normalized_entropy),u.normalized_entropy,"var(--leave)")+
+        '<div class="row" style="margin-top:.5rem"><span class="k">Candidates considered</span><span class="v">'+u.n_candidates+'</span></div>';
+    } else if(step===4){
+      h += '<div class="sub">Raw confidence becomes p</div>'+
+        barRow("Raw, as the model reported it",fmt(c.calibration.raw),c.calibration.raw,"var(--fg-faint)")+
+        barRow("Calibrated p",fmt(c.calibration.p),c.calibration.p,"var(--accent)")+
+        '<div class="row" style="margin-top:.5rem"><span class="k">Shift</span><span class="v">'+
+        (c.calibration.shift>=0?"+":"")+fmt(c.calibration.shift)+'</span></div>'+
+        '<div class="row"><span class="k">Calibrator chosen</span><span class="v">'+d.calibrator+'</span></div>';
+    } else if(step===5){
+      h += '<div class="sub">Probability the cell is genuinely corrupted</div>'+
+        barRow("q, for cells caught by "+c.detection.method,fmt(c.q),c.q,"var(--leave)");
+      h += '<p style="font-size:.82rem;color:var(--fg-dim);margin:.6rem 0 0">'+
+        (c.q<0.02
+          ? "Near zero. This check almost never catches a genuinely broken cell on this table — so leaving the cell alone costs almost nothing, and the system stops treating a statistical outlier as an error."
+          : "Learned from how often this particular check turns out to be right, not assumed.")+'</p>';
+    } else {
+      h += renderCosts(c, d.costs, true);
+    }
+    b.innerHTML = h;
+  }
+
+  /* ---------- the decision, computed live ---------- */
+  function decide(p,q,costs){
+    var a=(1-p)*costs.wrong, hu=costs.human, le=q*costs.abstain;
+    var best="ACCEPT_REPAIR", m=a;                 // tie-break: AUTO > HUMAN > ABSTAIN
+    if(hu<m){ best="HUMAN_REVIEW"; m=hu; }
+    if(le<m){ best="LEAVE_UNCHANGED"; m=le; }
+    return {auto:a,human:hu,leave:le,best:best,min:m};
+  }
+  var ACT={ACCEPT_REPAIR:["Repair it automatically","a-auto"],
+            HUMAN_REVIEW:["Send it to a person","a-human"],
+            LEAVE_UNCHANGED:["Leave it alone","a-leave"]};
+
+  function renderCosts(c,costs,withWhy){
+    var r=decide(c.calibration.p,c.q,costs);
+    var mx=Math.max(r.auto,r.human,r.leave,0.0001);
+    function row(cls,name,val,key){
+      return '<div class="cost '+cls+(r.best===key?" win":"")+'"><span class="cn">'+name+
+        '</span><span class="cb"><i style="width:'+(val/mx*100)+'%"></i></span>'+
+        '<span class="cx">'+fmt(val,2)+'</span></div>';
+    }
+    var h='<div class="sub">Expected cost of each action</div><div class="costs">'+
+      row("c-auto","Repair",r.auto,"ACCEPT_REPAIR")+
+      row("c-human","Review",r.human,"HUMAN_REVIEW")+
+      row("c-leave","Leave",r.leave,"LEAVE_UNCHANGED")+'</div>';
+    h += '<div class="verdictbox '+ACT[r.best][1]+'"><div class="lbl">Lowest expected cost</div>'+
+      '<div class="act">'+ACT[r.best][0]+'</div>';
+    if(withWhy){
+      h += '<div class="why">p = '+fmt(c.calibration.p)+', q = '+fmt(c.q)+
+        ' · costs '+fmt(costs.wrong,0)+" / "+fmt(costs.human,0)+" / "+fmt(costs.abstain,0)+'</div>';
+    }
+    h += '</div>';
+    return h;
+  }
+
+  /* ---------- sandbox ---------- */
+  var sl={wrong:document.getElementById("c-wrong"),human:document.getElementById("c-human"),abstain:document.getElementById("c-leave")};
+  function labCosts(){ return {wrong:+sl.wrong.value,human:+sl.human.value,abstain:+sl.abstain.value}; }
+  function syncLabels(cs){
+    document.getElementById("c-wrong-v").textContent=cs.wrong;
+    document.getElementById("c-human-v").textContent=cs.human;
+    document.getElementById("c-leave-v").textContent=cs.abstain;
+  }
+  function resetCosts(){
+    var d=DS[CELLS[cur].dataset].costs;
+    sl.wrong.value=d.wrong; sl.human.value=d.human; sl.abstain.value=d.abstain;
+  }
+  function renderLab(){
+    var c=CELLS[cur], cs=labCosts();
+    syncLabels(cs);
+    document.getElementById("lab-verdict").innerHTML=renderCosts(c,cs,true);
+    drawMap(c,cs);
+  }
+
+  /* Decision map. For a fixed q the best of review/leave is a constant, and
+     repair wins once (1-p)*C_wrong drops below it — so each q-strip splits at
+     a single p. Exact, and cheap to draw. */
+  function drawMap(c,cs){
+    var W=320,H=300,L=44,R=10,Tp=12,B=34, pw=W-L-R, ph=H-Tp-B, N=72, s=[];
+    var X=function(p){ return L+Math.max(0,Math.min(1,p))*pw; };
+    var Y=function(q){ return Tp+ph-Math.max(0,Math.min(1,q))*ph; };
+    // For a fixed q the best of review/leave is constant, and repair wins once
+    // (1-p)*C_wrong falls below it -- so each q splits at one p. Regions are
+    // drawn as single polygons so adjacent bands cannot seam or double up.
+    var pb=function(q){
+      var other=Math.min(cs.human, q*cs.abstain);
+      return Math.max(0,Math.min(1,1-other/cs.wrong));
+    };
+    var qStar=Math.max(0,Math.min(1,cs.human/cs.abstain)); // leave below, review above
+    function band(q0,q1,fill){
+      if(q1-q0<1e-9) return;
+      var pts=[], i, q;
+      for(i=0;i<=N;i++){ q=q0+(q1-q0)*i/N; pts.push(X(pb(q))+","+Y(q)); }
+      pts.push(X(0)+","+Y(q1)); pts.push(X(0)+","+Y(q0));
+      s.push('<polygon points="'+pts.join(" ")+'" fill="'+fill+'"/>');
+    }
+    // repair region: right of the staircase, full height
+    var rp=[], i, q;
+    for(i=0;i<=N;i++){ q=i/N; rp.push(X(pb(q))+","+Y(q)); }
+    rp.push(X(1)+","+Y(1)); rp.push(X(1)+","+Y(0));
+    s.push('<polygon points="'+rp.join(" ")+'" fill="var(--repair-soft)"/>');
+    band(0,Math.min(qStar,1),"var(--leave-soft)");
+    if(qStar<1) band(qStar,1,"var(--review-soft)");
+    // the q* divider, only where it is inside the plot
+    if(qStar>0 && qStar<1){
+      s.push('<line x1="'+X(0)+'" y1="'+Y(qStar)+'" x2="'+X(pb(qStar))+'" y2="'+Y(qStar)+'" stroke="var(--line-strong)" stroke-width="1" stroke-dasharray="3 3"/>');
+    }
+    s.push('<rect x="'+L+'" y="'+Tp+'" width="'+pw+'" height="'+ph+'" fill="none" stroke="var(--line-strong)"/>');
+    [0,0.5,1].forEach(function(t){
+      s.push('<text x="'+X(t)+'" y="'+(Tp+ph+14)+'" fill="var(--fg-faint)" font-size="9" font-family="monospace" text-anchor="middle">'+t.toFixed(1)+'</text>');
+      s.push('<text x="'+(L-6)+'" y="'+(Y(t)+3)+'" fill="var(--fg-faint)" font-size="9" font-family="monospace" text-anchor="end">'+t.toFixed(1)+'</text>');
+    });
+    s.push('<text x="'+(L+pw/2)+'" y="'+(H-5)+'" fill="var(--fg-dim)" font-size="9.5" font-family="sans-serif" text-anchor="middle">p · confidence the repair is right</text>');
+    s.push('<text transform="translate(12,'+(Tp+ph/2)+') rotate(-90)" fill="var(--fg-dim)" font-size="9.5" font-family="sans-serif" text-anchor="middle">q · chance it is broken</text>');
+    s.push('<circle cx="'+X(c.calibration.p)+'" cy="'+Y(c.q)+'" r="6" fill="var(--accent)" stroke="var(--panel)" stroke-width="2"/>');
+    document.getElementById("map").innerHTML=s.join("");
+  }
+
+  Object.keys(sl).forEach(function(k){ sl[k].addEventListener("input",renderLab); });
+  document.getElementById("reset").addEventListener("click",function(){ resetCosts(); renderLab(); });
+
+  renderPickers(); renderSteps(); resetCosts(); renderStage(); renderLab();
+  /* Redraw the map if the viewer flips theme, since its fills are tokens. */
+  if(window.matchMedia){
+    var mq=window.matchMedia("(prefers-color-scheme: dark)");
+    if(mq.addEventListener) mq.addEventListener("change",function(){ renderLab(); });
+  }
+})();
+</script>
