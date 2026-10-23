@@ -1,0 +1,1693 @@
+{
+  "seed": 42,
+  "row_cap": 8000,
+  "budget": 20,
+  "datasets": [
+    {
+      "dataset": "adult",
+      "n_rows": 8000,
+      "n_rows_full": 45222,
+      "n_cols": 15,
+      "prevalence": 0.0026666666666666666,
+      "n_corrupted_cells": 320,
+      "scored_columns": [
+        "age",
+        "workclass",
+        "fnlwgt",
+        "education",
+        "educational_num",
+        "marital_status",
+        "occupation",
+        "relationship",
+        "race",
+        "gender",
+        "capital_gain",
+        "capital_loss",
+        "hours_per_week",
+        "native_country",
+        "income"
+      ],
+      "corrupted_columns": [
+        "income"
+      ],
+      "baseline_column_auc": 0.3571428571428571,
+      "baseline_column_stat": {
+        "age": 0.3800112174940586,
+        "workclass": 0.20944588853271706,
+        "fnlwgt": 0.3847332832378467,
+        "education": 0.6441210132034212,
+        "educational_num": 9.906348841389329e-07,
+        "marital_status": 0.07263168378955134,
+        "occupation": 0.5023848492363447,
+        "relationship": 0.1379846165730629,
+        "race": 0.07806841540086248,
+        "gender": 0.14341346896238655,
+        "capital_gain": 0.4760125595752056,
+        "capital_loss": 0.4525779968586181,
+        "hours_per_week": 0.3947995958401581,
+        "native_country": 0.20212499999997588,
+        "income": 0.19106421519011885
+      },
+      "rare_frac": {
+        "age": 0.07825,
+        "workclass": 0.0005,
+        "fnlwgt": 1.0,
+        "education": 0.01725,
+        "educational_num": 0.01725,
+        "marital_status": 0.00075,
+        "occupation": 0.00375,
+        "relationship": 0.0,
+        "race": 0.018,
+        "gender": 0.0,
+        "capital_gain": 0.071,
+        "capital_loss": 0.049125,
+        "hours_per_week": 0.1345,
+        "native_country": 0.07275,
+        "income": 0.0
+      },
+      "cardinality": {
+        "age": 71,
+        "workclass": 7,
+        "fnlwgt": 6947,
+        "education": 16,
+        "educational_num": 16,
+        "marital_status": 7,
+        "occupation": 14,
+        "relationship": 6,
+        "race": 5,
+        "gender": 2,
+        "capital_gain": 88,
+        "capital_loss": 61,
+        "hours_per_week": 86,
+        "native_country": 40,
+        "income": 2
+      },
+      "arms": {
+        "a0": {
+          "arm": "a0",
+          "policy_source": "designed",
+          "fitted": true,
+          "skip_reason": "",
+          "n_labels": 0,
+          "n_positive_labels": 0,
+          "policy_columns": {},
+          "policy_kinds": {},
+          "one_directional": {},
+          "n_synth_injected": 1996,
+          "pr_auc": 0.003978352872915472,
+          "roc_auc": 0.6755681295955882,
+          "best_f1": 0.009974411196407124,
+          "precision_at_best_f1": 0.005029227447469587,
+          "recall_at_best_f1": 0.596875,
+          "column_auc": 0.0714285714285714,
+          "column_stat": {
+            "age": 0.033349198241329155,
+            "workclass": 0.013707360677314831,
+            "fnlwgt": 0.03414068898485826,
+            "education": 0.03465197732949693,
+            "educational_num": 0.028910229662829176,
+            "marital_status": 0.02481499479666719,
+            "occupation": 0.03937620818416612,
+            "relationship": 0.017656862365259533,
+            "race": 0.024827014301312112,
+            "gender": 0.006644634094157008,
+            "capital_gain": 0.02992040631292104,
+            "capital_loss": 0.03373489269550643,
+            "hours_per_week": 0.03473916226719698,
+            "native_country": 0.02723073468376814,
+            "income": 0.007691627108293039
+          },
+          "focus_pr_auc": 0.12683542896042943,
+          "seconds": 110.88312315940857
+        },
+        "a1_rand": {
+          "arm": "a1_rand",
+          "policy_source": "learned",
+          "fitted": false,
+          "skip_reason": "20 labelled cells contained 0 corrupted cells; no policy is estimable. This is a measurement, not a failure to compute.",
+          "n_labels": 20,
+          "n_positive_labels": 0,
+          "policy_columns": {},
+          "policy_kinds": {},
+          "one_directional": {},
+          "n_synth_injected": 0,
+          "pr_auc": null,
+          "roc_auc": null,
+          "best_f1": null,
+          "precision_at_best_f1": null,
+          "recall_at_best_f1": null,
+          "column_auc": null,
+          "column_stat": {},
+          "focus_pr_auc": null,
+          "seconds": 2.002716064453125e-05
+        },
+        "a1_top": {
+          "arm": "a1_top",
+          "policy_source": "learned",
+          "fitted": false,
+          "skip_reason": "20 labelled cells contained 0 corrupted cells; no policy is estimable. This is a measurement, not a failure to compute.",
+          "n_labels": 20,
+          "n_positive_labels": 0,
+          "policy_columns": {},
+          "policy_kinds": {},
+          "one_directional": {},
+          "n_synth_injected": 0,
+          "pr_auc": null,
+          "roc_auc": null,
+          "best_f1": null,
+          "precision_at_best_f1": null,
+          "recall_at_best_f1": null,
+          "column_auc": null,
+          "column_stat": {},
+          "focus_pr_auc": null,
+          "seconds": 9.775161743164062e-06
+        },
+        "a1b_bal": {
+          "arm": "a1b_bal",
+          "policy_source": "learned",
+          "fitted": true,
+          "skip_reason": "",
+          "n_labels": 20,
+          "n_positive_labels": 10,
+          "policy_columns": {
+            "income": 1.0
+          },
+          "policy_kinds": {
+            "income": {
+              "swap": 1.0
+            }
+          },
+          "one_directional": {
+            "income": true
+          },
+          "n_synth_injected": 2000,
+          "pr_auc": 0.0026847889923651315,
+          "roc_auc": 0.20036346925133686,
+          "best_f1": 0.00535520040164003,
+          "precision_at_best_f1": 0.0026847889923651315,
+          "recall_at_best_f1": 1.0,
+          "column_auc": 0.10714285714285715,
+          "column_stat": {
+            "age": 8.930376702626067e-06,
+            "workclass": 4.1070078853688764e-06,
+            "fnlwgt": 8.511625904212721e-06,
+            "education": 1.1378115286264125e-05,
+            "educational_num": 1.9726829776024988e-05,
+            "marital_status": 2.2767804036677106e-05,
+            "occupation": 6.578258400954431e-06,
+            "relationship": 7.5870025554423126e-06,
+            "race": 4.1070078853688764e-06,
+            "gender": 4.1070078853688764e-06,
+            "capital_gain": 5.966504067289294e-06,
+            "capital_loss": 5.962845311468921e-06,
+            "hours_per_week": 8.257565911475559e-06,
+            "native_country": 6.146774363113556e-06,
+            "income": 4.1070078853688764e-06
+          },
+          "focus_pr_auc": 0.04,
+          "seconds": 1480.9286091327667
+        },
+        "a2": {
+          "arm": "a2",
+          "policy_source": "oracle",
+          "fitted": true,
+          "skip_reason": "",
+          "n_labels": 320,
+          "n_positive_labels": 320,
+          "policy_columns": {
+            "income": 1.0
+          },
+          "policy_kinds": {
+            "income": {
+              "swap": 1.0
+            }
+          },
+          "one_directional": {
+            "income": true
+          },
+          "n_synth_injected": 2000,
+          "pr_auc": 0.002670784125526854,
+          "roc_auc": 0.19514120989304817,
+          "best_f1": 0.005327340075748117,
+          "precision_at_best_f1": 0.002670784125526854,
+          "recall_at_best_f1": 1.0,
+          "column_auc": 0.10714285714285715,
+          "column_stat": {
+            "age": 1.0939478619483779e-05,
+            "workclass": 4.107196593440663e-06,
+            "fnlwgt": 1.045294507416166e-05,
+            "education": 1.2636992157778273e-05,
+            "educational_num": 2.118081557538897e-05,
+            "marital_status": 2.446210025670687e-05,
+            "occupation": 7.056841560132826e-06,
+            "relationship": 8.098632223676451e-06,
+            "race": 4.107196593440663e-06,
+            "gender": 4.107196593440663e-06,
+            "capital_gain": 6.9698631253969255e-06,
+            "capital_loss": 6.9825844285365705e-06,
+            "hours_per_week": 8.976436435436795e-06,
+            "native_country": 6.366138652662222e-06,
+            "income": 4.107196593440663e-06
+          },
+          "focus_pr_auc": 0.04,
+          "seconds": 3721.3177711963654
+        }
+      },
+      "column_auc_defined": true,
+      "seconds": 5342.202899456024
+    },
+    {
+      "dataset": "breast_cancer",
+      "n_rows": 699,
+      "n_rows_full": 699,
+      "n_cols": 12,
+      "prevalence": 0.07522651406771579,
+      "n_corrupted_cells": 631,
+      "scored_columns": [
+        "Clump Thickness",
+        "Uniformity of Cell Size",
+        "Uniformity of Cell Shape",
+        "Marginal Adhesion",
+        "Single Epithelial Cell Size",
+        "Bare Nuclei",
+        "Bland Chromatin",
+        "Normal Nucleoli",
+        "Mitoses",
+        "class"
+      ],
+      "corrupted_columns": [
+        "Unnamed: 0",
+        "Sample code number",
+        "Clump Thickness",
+        "Uniformity of Cell Size",
+        "Uniformity of Cell Shape",
+        "Marginal Adhesion",
+        "Single Epithelial Cell Size",
+        "Bare Nuclei",
+        "Bland Chromatin",
+        "Normal Nucleoli",
+        "Mitoses",
+        "class"
+      ],
+      "baseline_column_auc": null,
+      "baseline_column_stat": {
+        "Unnamed: 0": 0.0,
+        "Sample code number": 0.0,
+        "Clump Thickness": 0.33619987547229047,
+        "Uniformity of Cell Size": 0.06599560911035049,
+        "Uniformity of Cell Shape": 0.1090743586450361,
+        "Marginal Adhesion": 0.12055880495286041,
+        "Single Epithelial Cell Size": 0.14731805639223478,
+        "Bare Nuclei": 0.06459244719118903,
+        "Bland Chromatin": 0.2856173317246626,
+        "Normal Nucleoli": 0.07732781226846254,
+        "Mitoses": 0.0536789810479244,
+        "class": 0.015513915712543408
+      },
+      "rare_frac": {
+        "Unnamed: 0": 0.9728183118741058,
+        "Sample code number": 0.9742489270386266,
+        "Clump Thickness": 0.031473533619456366,
+        "Uniformity of Cell Size": 0.02861230329041488,
+        "Uniformity of Cell Shape": 0.005722460658082976,
+        "Marginal Adhesion": 0.011444921316165951,
+        "Single Epithelial Cell Size": 0.010014306151645207,
+        "Bare Nuclei": 0.024320457796852647,
+        "Bland Chromatin": 0.02861230329041488,
+        "Normal Nucleoli": 0.010014306151645207,
+        "Mitoses": 0.01430615164520744,
+        "class": 0.0
+      },
+      "cardinality": {
+        "Unnamed: 0": 658,
+        "Sample code number": 623,
+        "Clump Thickness": 19,
+        "Uniformity of Cell Size": 15,
+        "Uniformity of Cell Shape": 15,
+        "Marginal Adhesion": 13,
+        "Single Epithelial Cell Size": 14,
+        "Bare Nuclei": 17,
+        "Bland Chromatin": 16,
+        "Normal Nucleoli": 15,
+        "Mitoses": 12,
+        "class": 2
+      },
+      "arms": {
+        "a0": {
+          "arm": "a0",
+          "policy_source": "designed",
+          "fitted": true,
+          "skip_reason": "",
+          "n_labels": 0,
+          "n_positive_labels": 0,
+          "policy_columns": {},
+          "policy_kinds": {},
+          "one_directional": {},
+          "n_synth_injected": 135,
+          "pr_auc": 0.5169089286243622,
+          "roc_auc": 0.8691814989661196,
+          "best_f1": 0.543171114599686,
+          "precision_at_best_f1": 0.5381026438569206,
+          "recall_at_best_f1": 0.5483359746434231,
+          "column_auc": null,
+          "column_stat": {
+            "Unnamed: 0": 0.015851262262888348,
+            "Sample code number": 0.022854130333109887,
+            "Clump Thickness": 0.02556718276252067,
+            "Uniformity of Cell Size": 0.018497843520453385,
+            "Uniformity of Cell Shape": 0.017060082081153095,
+            "Marginal Adhesion": 0.016339192124538625,
+            "Single Epithelial Cell Size": 0.024089746659023404,
+            "Bare Nuclei": 0.02787527741589886,
+            "Bland Chromatin": 0.012052944820442188,
+            "Normal Nucleoli": 0.021103238704908038,
+            "Mitoses": 0.03347455951523171,
+            "class": 0.014860000361815928
+          },
+          "focus_pr_auc": 0.5561117886863374,
+          "seconds": 58.42595624923706
+        },
+        "a1_rand": {
+          "arm": "a1_rand",
+          "policy_source": "learned",
+          "fitted": true,
+          "skip_reason": "",
+          "n_labels": 20,
+          "n_positive_labels": 1,
+          "policy_columns": {
+            "Unnamed: 0": 1.0
+          },
+          "policy_kinds": {
+            "Unnamed: 0": {
+              "swap": 1.0
+            }
+          },
+          "one_directional": {
+            "Unnamed: 0": true
+          },
+          "n_synth_injected": 419,
+          "pr_auc": 0.07522651406771579,
+          "roc_auc": 0.49993554209101454,
+          "best_f1": 0.13992682115533872,
+          "precision_at_best_f1": 0.07522651406771579,
+          "recall_at_best_f1": 1.0,
+          "column_auc": null,
+          "column_stat": {
+            "Unnamed: 0": 4.1072850613605366e-06,
+            "Sample code number": 4.1072850613605366e-06,
+            "Clump Thickness": 4.1072850613605366e-06,
+            "Uniformity of Cell Size": 4.1072850613605366e-06,
+            "Uniformity of Cell Shape": 4.1072850613605366e-06,
+            "Marginal Adhesion": 4.1072850613605366e-06,
+            "Single Epithelial Cell Size": 4.107285061360537e-06,
+            "Bare Nuclei": 4.1072850613605366e-06,
+            "Bland Chromatin": 4.1072850613605366e-06,
+            "Normal Nucleoli": 4.1072850613605366e-06,
+            "Mitoses": 4.1072850613605366e-06,
+            "class": 4.1072850613605366e-06
+          },
+          "focus_pr_auc": 0.06723891273247497,
+          "seconds": 24.553449153900146
+        },
+        "a1_top": {
+          "arm": "a1_top",
+          "policy_source": "learned",
+          "fitted": true,
+          "skip_reason": "",
+          "n_labels": 20,
+          "n_positive_labels": 20,
+          "policy_columns": {
+            "Bare Nuclei": 1.0
+          },
+          "policy_kinds": {
+            "Bare Nuclei": {
+              "missing": 1.0
+            }
+          },
+          "one_directional": {
+            "Bare Nuclei": false
+          },
+          "n_synth_injected": 676,
+          "pr_auc": 0.07913887098567332,
+          "roc_auc": 0.46830754778619266,
+          "best_f1": 0.13992682115533872,
+          "precision_at_best_f1": 0.07522651406771579,
+          "recall_at_best_f1": 1.0,
+          "column_auc": null,
+          "column_stat": {
+            "Unnamed: 0": 1.370027895632472e-05,
+            "Sample code number": 1.4216285799100986e-05,
+            "Clump Thickness": 1.2671647425391745e-05,
+            "Uniformity of Cell Size": 1.270238233934195e-05,
+            "Uniformity of Cell Shape": 1.2699318056329825e-05,
+            "Marginal Adhesion": 1.2774297410502259e-05,
+            "Single Epithelial Cell Size": 1.5080283159163939e-05,
+            "Bare Nuclei": 1.3188321836644052e-05,
+            "Bland Chromatin": 1.2708684589200027e-05,
+            "Normal Nucleoli": 1.2737256847130651e-05,
+            "Mitoses": 1.2869539026876909e-05,
+            "class": 1.2764973845182846e-05
+          },
+          "focus_pr_auc": 0.1404779231720096,
+          "seconds": 20.64733076095581
+        },
+        "a1b_bal": {
+          "arm": "a1b_bal",
+          "policy_source": "learned",
+          "fitted": true,
+          "skip_reason": "",
+          "n_labels": 20,
+          "n_positive_labels": 10,
+          "policy_columns": {
+            "Clump Thickness": 0.1,
+            "Uniformity of Cell Shape": 0.1,
+            "Marginal Adhesion": 0.1,
+            "Single Epithelial Cell Size": 0.4,
+            "Bland Chromatin": 0.2,
+            "class": 0.1
+          },
+          "policy_kinds": {
+            "Clump Thickness": {
+              "missing": 1.0
+            },
+            "Uniformity of Cell Shape": {
+              "missing": 1.0
+            },
+            "Marginal Adhesion": {
+              "missing": 1.0
+            },
+            "Single Epithelial Cell Size": {
+              "out_of_range": 0.25,
+              "missing": 0.25,
+              "swap": 0.5
+            },
+            "Bland Chromatin": {
+              "out_of_range": 1.0
+            },
+            "class": {
+              "swap": 1.0
+            }
+          },
+          "one_directional": {
+            "Clump Thickness": false,
+            "Uniformity of Cell Shape": false,
+            "Marginal Adhesion": false,
+            "Single Epithelial Cell Size": false,
+            "Bland Chromatin": false,
+            "class": true
+          },
+          "n_synth_injected": 1872,
+          "pr_auc": 0.1285764655701061,
+          "roc_auc": 0.652754620487972,
+          "best_f1": 0.26737967914438504,
+          "precision_at_best_f1": 0.23121387283236994,
+          "recall_at_best_f1": 0.31695721077654515,
+          "column_auc": null,
+          "column_stat": {
+            "Unnamed: 0": 2.9277706548187498e-05,
+            "Sample code number": 3.001927583396903e-05,
+            "Clump Thickness": 5.8378127790490947e-05,
+            "Uniformity of Cell Size": 5.911840260164517e-05,
+            "Uniformity of Cell Shape": 7.1003135342957e-05,
+            "Marginal Adhesion": 5.01481584887168e-05,
+            "Single Epithelial Cell Size": 6.96041836218006e-05,
+            "Bare Nuclei": 3.516409273647691e-05,
+            "Bland Chromatin": 5.883772439991877e-05,
+            "Normal Nucleoli": 6.06563036268384e-05,
+            "Mitoses": 5.965903193276282e-05,
+            "class": 0.21829602672484338
+          },
+          "focus_pr_auc": 0.3815946191870324,
+          "seconds": 25.805125951766968
+        },
+        "a2": {
+          "arm": "a2",
+          "policy_source": "oracle",
+          "fitted": true,
+          "skip_reason": "",
+          "n_labels": 631,
+          "n_positive_labels": 631,
+          "policy_columns": {
+            "Unnamed: 0": 0.07448494453248812,
+            "Sample code number": 0.09508716323296355,
+            "Clump Thickness": 0.11568938193343899,
+            "Uniformity of Cell Size": 0.08399366085578447,
+            "Uniformity of Cell Shape": 0.08716323296354993,
+            "Marginal Adhesion": 0.08082408874801902,
+            "Single Epithelial Cell Size": 0.09667194928684628,
+            "Bare Nuclei": 0.07923930269413629,
+            "Bland Chromatin": 0.09667194928684628,
+            "Normal Nucleoli": 0.09984152139461172,
+            "Mitoses": 0.06656101426307448,
+            "class": 0.02377179080824089
+          },
+          "policy_kinds": {
+            "Unnamed: 0": {
+              "missing": 0.40425531914893614,
+              "swap": 0.46808510638297873,
+              "parse_break": 0.10638297872340426,
+              "numeric_shift": 0.02127659574468085
+            },
+            "Sample code number": {
+              "parse_break": 0.31666666666666665,
+              "swap": 0.26666666666666666,
+              "numeric_shift": 0.06666666666666667,
+              "missing": 0.3,
+              "out_of_range": 0.05
+            },
+            "Clump Thickness": {
+              "swap": 0.3972602739726027,
+              "parse_break": 0.0136986301369863,
+              "missing": 0.3424657534246575,
+              "out_of_range": 0.2465753424657534
+            },
+            "Uniformity of Cell Size": {
+              "missing": 0.4339622641509434,
+              "swap": 0.37735849056603776,
+              "out_of_range": 0.18867924528301888
+            },
+            "Uniformity of Cell Shape": {
+              "swap": 0.4909090909090909,
+              "missing": 0.43636363636363634,
+              "out_of_range": 0.07272727272727272
+            },
+            "Marginal Adhesion": {
+              "swap": 0.49019607843137253,
+              "missing": 0.45098039215686275,
+              "parse_break": 0.0196078431372549,
+              "out_of_range": 0.0392156862745098
+            },
+            "Single Epithelial Cell Size": {
+              "swap": 0.3114754098360656,
+              "out_of_range": 0.26229508196721313,
+              "missing": 0.4262295081967213
+            },
+            "Bare Nuclei": {
+              "missing": 0.46,
+              "swap": 0.38,
+              "out_of_range": 0.08,
+              "parse_break": 0.08
+            },
+            "Bland Chromatin": {
+              "out_of_range": 0.2459016393442623,
+              "swap": 0.4098360655737705,
+              "missing": 0.3442622950819672
+            },
+            "Normal Nucleoli": {
+              "missing": 0.3968253968253968,
+              "swap": 0.49206349206349204,
+              "out_of_range": 0.09523809523809523,
+              "parse_break": 0.015873015873015872
+            },
+            "Mitoses": {
+              "missing": 0.47619047619047616,
+              "out_of_range": 0.47619047619047616,
+              "swap": 0.047619047619047616
+            },
+            "class": {
+              "swap": 1.0
+            }
+          },
+          "one_directional": {
+            "Unnamed: 0": false,
+            "Sample code number": false,
+            "Clump Thickness": false,
+            "Uniformity of Cell Size": false,
+            "Uniformity of Cell Shape": false,
+            "Marginal Adhesion": false,
+            "Single Epithelial Cell Size": false,
+            "Bare Nuclei": false,
+            "Bland Chromatin": false,
+            "Normal Nucleoli": false,
+            "Mitoses": false,
+            "class": false
+          },
+          "n_synth_injected": 1999,
+          "pr_auc": 0.5265279814059126,
+          "roc_auc": 0.8500777478835639,
+          "best_f1": 0.522488038277512,
+          "precision_at_best_f1": 0.6594202898550725,
+          "recall_at_best_f1": 0.4326465927099842,
+          "column_auc": null,
+          "column_stat": {
+            "Unnamed: 0": 0.02465672104393917,
+            "Sample code number": 0.07287844368465003,
+            "Clump Thickness": 0.10884595161365128,
+            "Uniformity of Cell Size": 0.08825413315897412,
+            "Uniformity of Cell Shape": 0.1417650998903774,
+            "Marginal Adhesion": 0.14194172196974003,
+            "Single Epithelial Cell Size": 0.11928697161060721,
+            "Bare Nuclei": 0.07995312680229374,
+            "Bland Chromatin": 0.14608092396773134,
+            "Normal Nucleoli": 0.0761996919030992,
+            "Mitoses": 0.05719870029636011,
+            "class": 0.047066973585497905
+          },
+          "focus_pr_auc": 0.5638120264639095,
+          "seconds": 32.10123038291931
+        }
+      },
+      "column_auc_defined": false,
+      "seconds": 184.3708074092865
+    },
+    {
+      "dataset": "smartfactory",
+      "n_rows": 8000,
+      "n_rows_full": 23645,
+      "n_cols": 19,
+      "prevalence": 0.016032894736842104,
+      "n_corrupted_cells": 2437,
+      "scored_columns": [
+        "labels",
+        "i_w_blo_weg",
+        "o_w_blo_power",
+        "o_w_blo_voltage",
+        "i_w_bhl_weg",
+        "o_w_bhl_power",
+        "o_w_bhl_voltage",
+        "i_w_bhr_weg",
+        "o_w_bhr_power",
+        "o_w_bhr_voltage",
+        "i_w_bru_weg",
+        "o_w_bru_power",
+        "o_w_bru_voltage",
+        "i_w_hr_weg",
+        "o_w_hr_power",
+        "o_w_hr_voltage",
+        "i_w_hl_weg",
+        "o_w_hl_power",
+        "o_w_hl_voltage"
+      ],
+      "corrupted_columns": [
+        "i_w_blo_weg",
+        "o_w_blo_power",
+        "o_w_blo_voltage",
+        "i_w_bhl_weg",
+        "o_w_bhl_power",
+        "o_w_bhl_voltage",
+        "i_w_bhr_weg",
+        "o_w_bhr_power",
+        "o_w_bhr_voltage",
+        "i_w_bru_weg",
+        "o_w_bru_power",
+        "o_w_bru_voltage",
+        "i_w_hr_weg",
+        "o_w_hr_power",
+        "o_w_hr_voltage",
+        "i_w_hl_weg",
+        "o_w_hl_power",
+        "o_w_hl_voltage"
+      ],
+      "baseline_column_auc": 1.0,
+      "baseline_column_stat": {
+        "labels": 0.18685401857287653,
+        "i_w_blo_weg": 0.43923996406127785,
+        "o_w_blo_power": 0.654168665634706,
+        "o_w_blo_voltage": 0.6274408973149973,
+        "i_w_bhl_weg": 0.45314733819392133,
+        "o_w_bhl_power": 0.4874935970227494,
+        "o_w_bhl_voltage": 0.4527089048780825,
+        "i_w_bhr_weg": 0.4313501518197201,
+        "o_w_bhr_power": 0.4946801730133119,
+        "o_w_bhr_voltage": 0.49028616697960176,
+        "i_w_bru_weg": 0.5645411218632305,
+        "o_w_bru_power": 0.5548778971965949,
+        "o_w_bru_voltage": 0.6185660179934496,
+        "i_w_hr_weg": 0.4468842557798933,
+        "o_w_hr_power": 0.4026199071080231,
+        "o_w_hr_voltage": 0.41512535779484516,
+        "i_w_hl_weg": 0.49017516741080874,
+        "o_w_hl_power": 0.39331275818927686,
+        "o_w_hl_voltage": 0.3918116237707061
+      },
+      "rare_frac": {
+        "labels": 0.0,
+        "i_w_blo_weg": 0.307375,
+        "o_w_blo_power": 0.341625,
+        "o_w_blo_voltage": 0.081625,
+        "i_w_bhl_weg": 0.345875,
+        "o_w_bhl_power": 0.626125,
+        "o_w_bhl_voltage": 0.061125,
+        "i_w_bhr_weg": 0.4215,
+        "o_w_bhr_power": 0.469125,
+        "o_w_bhr_voltage": 0.069625,
+        "i_w_bru_weg": 0.25175,
+        "o_w_bru_power": 0.428625,
+        "o_w_bru_voltage": 0.054875,
+        "i_w_hr_weg": 0.100875,
+        "o_w_hr_power": 0.856375,
+        "o_w_hr_voltage": 0.112375,
+        "i_w_hl_weg": 0.113125,
+        "o_w_hl_power": 0.665875,
+        "o_w_hl_voltage": 0.107125
+      },
+      "cardinality": {
+        "labels": 2,
+        "i_w_blo_weg": 548,
+        "o_w_blo_power": 880,
+        "o_w_blo_voltage": 58,
+        "i_w_bhl_weg": 932,
+        "o_w_bhl_power": 979,
+        "o_w_bhl_voltage": 59,
+        "i_w_bhr_weg": 938,
+        "o_w_bhr_power": 990,
+        "o_w_bhr_voltage": 54,
+        "i_w_bru_weg": 722,
+        "o_w_bru_power": 831,
+        "o_w_bru_voltage": 56,
+        "i_w_hr_weg": 326,
+        "o_w_hr_power": 1172,
+        "o_w_hr_voltage": 242,
+        "i_w_hl_weg": 341,
+        "o_w_hl_power": 1012,
+        "o_w_hl_voltage": 250
+      },
+      "arms": {
+        "a0": {
+          "arm": "a0",
+          "policy_source": "designed",
+          "fitted": true,
+          "skip_reason": "",
+          "n_labels": 0,
+          "n_positive_labels": 0,
+          "policy_columns": {},
+          "policy_kinds": {},
+          "one_directional": {},
+          "n_synth_injected": 1596,
+          "pr_auc": 0.5905236527419604,
+          "roc_auc": 0.995712449436641,
+          "best_f1": 0.8574456809750928,
+          "precision_at_best_f1": 0.7527915632754343,
+          "recall_at_best_f1": 0.9958965941731637,
+          "column_auc": 1.0,
+          "column_stat": {
+            "labels": 0.024873203495678932,
+            "i_w_blo_weg": 0.0486262447094509,
+            "o_w_blo_power": 0.04234802959001206,
+            "o_w_blo_voltage": 0.03678388030654044,
+            "i_w_bhl_weg": 0.03602135768078722,
+            "o_w_bhl_power": 0.05123745701859001,
+            "o_w_bhl_voltage": 0.04704130182730435,
+            "i_w_bhr_weg": 0.043345344844272535,
+            "o_w_bhr_power": 0.04154217492700052,
+            "o_w_bhr_voltage": 0.041717841012700874,
+            "i_w_bru_weg": 0.04933055155306071,
+            "o_w_bru_power": 0.04306482103607422,
+            "o_w_bru_voltage": 0.03694982854592508,
+            "i_w_hr_weg": 0.029992944422122896,
+            "o_w_hr_power": 0.04338489438461862,
+            "o_w_hr_voltage": 0.043941820507849644,
+            "i_w_hl_weg": 0.03770320038792769,
+            "o_w_hl_power": 0.040568435278255426,
+            "o_w_hl_voltage": 0.04535471131983324
+          },
+          "focus_pr_auc": 0.6915489053817716,
+          "seconds": 20.455538749694824
+        },
+        "a1_rand": {
+          "arm": "a1_rand",
+          "policy_source": "learned",
+          "fitted": false,
+          "skip_reason": "20 labelled cells contained 0 corrupted cells; no policy is estimable. This is a measurement, not a failure to compute.",
+          "n_labels": 20,
+          "n_positive_labels": 0,
+          "policy_columns": {},
+          "policy_kinds": {},
+          "one_directional": {},
+          "n_synth_injected": 0,
+          "pr_auc": null,
+          "roc_auc": null,
+          "best_f1": null,
+          "precision_at_best_f1": null,
+          "recall_at_best_f1": null,
+          "column_auc": null,
+          "column_stat": {},
+          "focus_pr_auc": null,
+          "seconds": 1.0013580322265625e-05
+        },
+        "a1_top": {
+          "arm": "a1_top",
+          "policy_source": "learned",
+          "fitted": true,
+          "skip_reason": "",
+          "n_labels": 20,
+          "n_positive_labels": 20,
+          "policy_columns": {
+            "i_w_bhl_weg": 1.0
+          },
+          "policy_kinds": {
+            "i_w_bhl_weg": {
+              "missing": 1.0
+            }
+          },
+          "one_directional": {
+            "i_w_bhl_weg": false
+          },
+          "n_synth_injected": 2000,
+          "pr_auc": 0.9795222352050519,
+          "roc_auc": 0.9992326351531292,
+          "best_f1": 0.9807611877875366,
+          "precision_at_best_f1": 1.0,
+          "recall_at_best_f1": 0.9622486663931062,
+          "column_auc": 1.0,
+          "column_stat": {
+            "labels": 4.107261920623062e-06,
+            "i_w_blo_weg": 6.3013495859466185e-06,
+            "o_w_blo_power": 4.61773385099639e-06,
+            "o_w_blo_voltage": 4.5369437392457565e-06,
+            "i_w_bhl_weg": 4.5863224328539935e-06,
+            "o_w_bhl_power": 4.5663280236089476e-06,
+            "o_w_bhl_voltage": 4.573431894636555e-06,
+            "i_w_bhr_weg": 6.961476729881966e-06,
+            "o_w_bhr_power": 4.509786973284838e-06,
+            "o_w_bhr_voltage": 4.582863736333338e-06,
+            "i_w_bru_weg": 4.549384670341846e-06,
+            "o_w_bru_power": 4.533375506717648e-06,
+            "o_w_bru_voltage": 4.579941670758343e-06,
+            "i_w_hr_weg": 4.496368969862007e-06,
+            "o_w_hr_power": 6.746045245524954e-06,
+            "o_w_hr_voltage": 4.525395092265277e-06,
+            "i_w_hl_weg": 4.54774135540726e-06,
+            "o_w_hl_power": 5.879417354403119e-06,
+            "o_w_hl_voltage": 4.51613611340316e-06
+          },
+          "focus_pr_auc": 0.9497514960101605,
+          "seconds": 12.671488523483276
+        },
+        "a1b_bal": {
+          "arm": "a1b_bal",
+          "policy_source": "learned",
+          "fitted": true,
+          "skip_reason": "",
+          "n_labels": 20,
+          "n_positive_labels": 10,
+          "policy_columns": {
+            "o_w_bhl_power": 0.1,
+            "o_w_bhr_power": 0.1,
+            "o_w_bhr_voltage": 0.1,
+            "i_w_bru_weg": 0.1,
+            "o_w_bru_power": 0.2,
+            "o_w_bru_voltage": 0.1,
+            "o_w_hr_power": 0.3
+          },
+          "policy_kinds": {
+            "o_w_bhl_power": {
+              "missing": 1.0
+            },
+            "o_w_bhr_power": {
+              "missing": 1.0
+            },
+            "o_w_bhr_voltage": {
+              "missing": 1.0
+            },
+            "i_w_bru_weg": {
+              "missing": 1.0
+            },
+            "o_w_bru_power": {
+              "missing": 1.0
+            },
+            "o_w_bru_voltage": {
+              "missing": 1.0
+            },
+            "o_w_hr_power": {
+              "missing": 1.0
+            }
+          },
+          "one_directional": {
+            "o_w_bhl_power": false,
+            "o_w_bhr_power": false,
+            "o_w_bhr_voltage": false,
+            "i_w_bru_weg": false,
+            "o_w_bru_power": false,
+            "o_w_bru_voltage": false,
+            "o_w_hr_power": false
+          },
+          "n_synth_injected": 2000,
+          "pr_auc": 0.8738466835869777,
+          "roc_auc": 0.9954429733494322,
+          "best_f1": 0.8725422160536664,
+          "precision_at_best_f1": 1.0,
+          "recall_at_best_f1": 0.7739023389413213,
+          "column_auc": 1.0,
+          "column_stat": {
+            "labels": 5.117137319431251e-06,
+            "i_w_blo_weg": 8.844749859765812e-06,
+            "o_w_blo_power": 9.872202760927051e-06,
+            "o_w_blo_voltage": 6.768164325424481e-06,
+            "i_w_bhl_weg": 6.351048466678858e-06,
+            "o_w_bhl_power": 6.158458860006051e-06,
+            "o_w_bhl_voltage": 6.373042251412754e-06,
+            "i_w_bhr_weg": 1.3872394177299044e-05,
+            "o_w_bhr_power": 6.265780730227251e-06,
+            "o_w_bhr_voltage": 6.914845707563874e-06,
+            "i_w_bru_weg": 6.2695592400696376e-06,
+            "o_w_bru_power": 6.5394351567566084e-06,
+            "o_w_bru_voltage": 8.363671899237888e-06,
+            "i_w_hr_weg": 6.060922130669306e-06,
+            "o_w_hr_power": 6.168775326169705e-06,
+            "o_w_hr_voltage": 7.686767577556649e-06,
+            "i_w_hl_weg": 8.904257139377445e-06,
+            "o_w_hl_power": 6.194388944015028e-06,
+            "o_w_hl_voltage": 6.130567531618303e-06
+          },
+          "focus_pr_auc": 0.8648155818996972,
+          "seconds": 12.600200176239014
+        },
+        "a2": {
+          "arm": "a2",
+          "policy_source": "oracle",
+          "fitted": true,
+          "skip_reason": "",
+          "n_labels": 2437,
+          "n_positive_labels": 2437,
+          "policy_columns": {
+            "i_w_blo_weg": 0.05621665982765695,
+            "o_w_blo_power": 0.061551087402544113,
+            "o_w_blo_voltage": 0.05211325400082068,
+            "i_w_bhl_weg": 0.06032006565449323,
+            "o_w_bhl_power": 0.058268362741075094,
+            "o_w_bhl_voltage": 0.06114074681986048,
+            "i_w_bhr_weg": 0.05375461633155519,
+            "o_w_bhr_power": 0.04759950759130078,
+            "o_w_bhr_voltage": 0.05785802215839146,
+            "i_w_bru_weg": 0.06196142798522774,
+            "o_w_bru_power": 0.05047189167008617,
+            "o_w_bru_voltage": 0.057447681575707836,
+            "i_w_hr_weg": 0.04924086992203529,
+            "o_w_hr_power": 0.05047189167008617,
+            "o_w_hr_voltage": 0.053344275748871565,
+            "i_w_hl_weg": 0.057447681575707836,
+            "o_w_hl_power": 0.05785802215839146,
+            "o_w_hl_voltage": 0.05293393516618793
+          },
+          "policy_kinds": {
+            "i_w_blo_weg": {
+              "missing": 1.0
+            },
+            "o_w_blo_power": {
+              "missing": 1.0
+            },
+            "o_w_blo_voltage": {
+              "missing": 1.0
+            },
+            "i_w_bhl_weg": {
+              "missing": 1.0
+            },
+            "o_w_bhl_power": {
+              "missing": 1.0
+            },
+            "o_w_bhl_voltage": {
+              "missing": 1.0
+            },
+            "i_w_bhr_weg": {
+              "missing": 1.0
+            },
+            "o_w_bhr_power": {
+              "missing": 1.0
+            },
+            "o_w_bhr_voltage": {
+              "missing": 1.0
+            },
+            "i_w_bru_weg": {
+              "missing": 1.0
+            },
+            "o_w_bru_power": {
+              "missing": 1.0
+            },
+            "o_w_bru_voltage": {
+              "missing": 1.0
+            },
+            "i_w_hr_weg": {
+              "missing": 1.0
+            },
+            "o_w_hr_power": {
+              "missing": 1.0
+            },
+            "o_w_hr_voltage": {
+              "missing": 1.0
+            },
+            "i_w_hl_weg": {
+              "missing": 1.0
+            },
+            "o_w_hl_power": {
+              "missing": 1.0
+            },
+            "o_w_hl_voltage": {
+              "missing": 1.0
+            }
+          },
+          "one_directional": {
+            "i_w_blo_weg": false,
+            "o_w_blo_power": false,
+            "o_w_blo_voltage": false,
+            "i_w_bhl_weg": false,
+            "o_w_bhl_power": false,
+            "o_w_bhl_voltage": false,
+            "i_w_bhr_weg": false,
+            "o_w_bhr_power": false,
+            "o_w_bhr_voltage": false,
+            "i_w_bru_weg": false,
+            "o_w_bru_power": false,
+            "o_w_bru_voltage": false,
+            "i_w_hr_weg": false,
+            "o_w_hr_power": false,
+            "o_w_hr_voltage": false,
+            "i_w_hl_weg": false,
+            "o_w_hl_power": false,
+            "o_w_hl_voltage": false
+          },
+          "n_synth_injected": 2001,
+          "pr_auc": 1.0,
+          "roc_auc": 1.0,
+          "best_f1": 1.0,
+          "precision_at_best_f1": 1.0,
+          "recall_at_best_f1": 1.0,
+          "column_auc": 1.0,
+          "column_stat": {
+            "labels": 6.732562740507107e-06,
+            "i_w_blo_weg": 0.012112406382057003,
+            "o_w_blo_power": 0.01344705161718676,
+            "o_w_blo_voltage": 0.012143680691190739,
+            "i_w_bhl_weg": 0.01332724461026505,
+            "o_w_bhl_power": 0.014629646651342474,
+            "o_w_bhl_voltage": 0.015396927283089766,
+            "i_w_bhr_weg": 0.011046108110767386,
+            "o_w_bhr_power": 0.011245893528719013,
+            "o_w_bhr_voltage": 0.013380844280545364,
+            "i_w_bru_weg": 0.014504415402544333,
+            "o_w_bru_power": 0.012265147091258562,
+            "o_w_bru_voltage": 0.013268824778865977,
+            "i_w_hr_weg": 0.01245150330728866,
+            "o_w_hr_power": 0.012184206327120677,
+            "o_w_hr_voltage": 0.01212722940947496,
+            "i_w_hl_weg": 0.013781643994185327,
+            "o_w_hl_power": 0.011872236351010134,
+            "o_w_hl_voltage": 0.011956964877366421
+          },
+          "focus_pr_auc": 1.0000000000000002,
+          "seconds": 16.73128652572632
+        }
+      },
+      "column_auc_defined": true,
+      "seconds": 73.83893775939941
+    },
+    {
+      "dataset": "soccer",
+      "n_rows": 8000,
+      "n_rows_full": 200000,
+      "n_cols": 10,
+      "prevalence": 0.01545,
+      "n_corrupted_cells": 1236,
+      "scored_columns": [
+        "birthyear",
+        "position",
+        "team",
+        "city",
+        "stadium",
+        "season",
+        "manager"
+      ],
+      "corrupted_columns": [
+        "surname",
+        "position",
+        "city",
+        "season"
+      ],
+      "baseline_column_auc": 0.75,
+      "baseline_column_stat": {
+        "name": 0.0,
+        "surname": 0.0,
+        "birthyear": 0.3965552976608824,
+        "birthplace": 0.0,
+        "position": 0.058441274088314385,
+        "team": 2.9166004850949695e-06,
+        "city": 0.004063150895300335,
+        "stadium": 2.0921943871572006e-06,
+        "season": 0.42782301102642883,
+        "manager": 0.0066565912861935635
+      },
+      "rare_frac": {
+        "name": 0.886875,
+        "surname": 0.8095,
+        "birthyear": 0.004875,
+        "birthplace": 0.6015,
+        "position": 0.0,
+        "team": 0.0455,
+        "city": 0.014375,
+        "stadium": 0.02925,
+        "season": 0.026125,
+        "manager": 0.054
+      },
+      "cardinality": {
+        "name": 226,
+        "surname": 211,
+        "birthyear": 24,
+        "birthplace": 149,
+        "position": 4,
+        "team": 36,
+        "city": 27,
+        "stadium": 28,
+        "season": 74,
+        "manager": 42
+      },
+      "arms": {
+        "a0": {
+          "arm": "a0",
+          "policy_source": "designed",
+          "fitted": true,
+          "skip_reason": "",
+          "n_labels": 0,
+          "n_positive_labels": 0,
+          "policy_columns": {},
+          "policy_kinds": {},
+          "one_directional": {},
+          "n_synth_injected": 1599,
+          "pr_auc": 0.027063256276701465,
+          "roc_auc": 0.4549473271839565,
+          "best_f1": 0.1178981061616431,
+          "precision_at_best_f1": 0.08794269797055312,
+          "recall_at_best_f1": 0.17880258899676377,
+          "column_auc": 0.08333333333333333,
+          "column_stat": {
+            "name": 6.226527455620519e-05,
+            "surname": 7.080995159323678e-05,
+            "birthyear": 0.00020044426022152335,
+            "birthplace": 6.241587234100739e-05,
+            "position": 5.00904670334288e-05,
+            "team": 0.00020873279877896495,
+            "city": 0.00018045326665380983,
+            "stadium": 0.00017887597849699727,
+            "season": 9.640824829482258e-05,
+            "manager": 0.00022508309806389926
+          },
+          "focus_pr_auc": 0.10997890716333111,
+          "seconds": 28.427937269210815
+        },
+        "a1_rand": {
+          "arm": "a1_rand",
+          "policy_source": "learned",
+          "fitted": false,
+          "skip_reason": "20 labelled cells contained 0 corrupted cells; no policy is estimable. This is a measurement, not a failure to compute.",
+          "n_labels": 20,
+          "n_positive_labels": 0,
+          "policy_columns": {},
+          "policy_kinds": {},
+          "one_directional": {},
+          "n_synth_injected": 0,
+          "pr_auc": null,
+          "roc_auc": null,
+          "best_f1": null,
+          "precision_at_best_f1": null,
+          "recall_at_best_f1": null,
+          "column_auc": null,
+          "column_stat": {},
+          "focus_pr_auc": null,
+          "seconds": 1.6689300537109375e-05
+        },
+        "a1_top": {
+          "arm": "a1_top",
+          "policy_source": "learned",
+          "fitted": true,
+          "skip_reason": "",
+          "n_labels": 20,
+          "n_positive_labels": 20,
+          "policy_columns": {
+            "season": 1.0
+          },
+          "policy_kinds": {
+            "season": {
+              "parse_break": 1.0
+            }
+          },
+          "one_directional": {
+            "season": false
+          },
+          "n_synth_injected": 2000,
+          "pr_auc": 0.19441544429727248,
+          "roc_auc": 0.6826326472971818,
+          "best_f1": 0.27309782608695654,
+          "precision_at_best_f1": 0.8516949152542372,
+          "recall_at_best_f1": 0.16262135922330098,
+          "column_auc": 0.3333333333333333,
+          "column_stat": {
+            "name": 4.937281672240051e-06,
+            "surname": 5.22008693000293e-06,
+            "birthyear": 2.0351696648289683e-05,
+            "birthplace": 7.626325625115799e-06,
+            "position": 4.0989573254487514e-06,
+            "team": 4.168520039979012e-06,
+            "city": 4.098499331846237e-06,
+            "stadium": 4.191489144820866e-06,
+            "season": 0.0119128386183332,
+            "manager": 4.169985834445471e-06
+          },
+          "focus_pr_auc": 0.08119733189445086,
+          "seconds": 59.04909086227417
+        },
+        "a1b_bal": {
+          "arm": "a1b_bal",
+          "policy_source": "learned",
+          "fitted": true,
+          "skip_reason": "",
+          "n_labels": 20,
+          "n_positive_labels": 10,
+          "policy_columns": {
+            "surname": 0.6,
+            "city": 0.3,
+            "season": 0.1
+          },
+          "policy_kinds": {
+            "surname": {
+              "swap": 1.0
+            },
+            "city": {
+              "swap": 1.0
+            },
+            "season": {
+              "out_of_range": 1.0
+            }
+          },
+          "one_directional": {
+            "surname": false,
+            "city": true,
+            "season": true
+          },
+          "n_synth_injected": 2000,
+          "pr_auc": 0.43550774517928914,
+          "roc_auc": 0.9478545982845973,
+          "best_f1": 0.5427018633540373,
+          "precision_at_best_f1": 0.5216417910447761,
+          "recall_at_best_f1": 0.5655339805825242,
+          "column_auc": 0.8333333333333333,
+          "column_stat": {
+            "name": 0.0006702395048235994,
+            "surname": 0.08988832174079173,
+            "birthyear": 3.264023073179115e-05,
+            "birthplace": 0.000445143175984486,
+            "position": 6.756391203795489e-05,
+            "team": 7.431570650927321e-05,
+            "city": 0.00026745032592297743,
+            "stadium": 3.947451534018058e-05,
+            "season": 0.0003450999538791413,
+            "manager": 9.380221756097392e-05
+          },
+          "focus_pr_auc": 0.6020809348658134,
+          "seconds": 58.96925377845764
+        },
+        "a2": {
+          "arm": "a2",
+          "policy_source": "oracle",
+          "fitted": true,
+          "skip_reason": "",
+          "n_labels": 1236,
+          "n_positive_labels": 1236,
+          "policy_columns": {
+            "surname": 0.5995145631067961,
+            "position": 0.021844660194174758,
+            "city": 0.20954692556634305,
+            "season": 0.16909385113268607
+          },
+          "policy_kinds": {
+            "surname": {
+              "swap": 1.0
+            },
+            "position": {
+              "swap": 1.0
+            },
+            "city": {
+              "swap": 1.0
+            },
+            "season": {
+              "parse_break": 0.4880382775119617,
+              "out_of_range": 0.5119617224880383
+            }
+          },
+          "one_directional": {
+            "surname": false,
+            "position": false,
+            "city": true,
+            "season": false
+          },
+          "n_synth_injected": 2000,
+          "pr_auc": 0.34795305991082054,
+          "roc_auc": 0.9475983126192884,
+          "best_f1": 0.4900900900900901,
+          "precision_at_best_f1": 0.44184535412605586,
+          "recall_at_best_f1": 0.5501618122977346,
+          "column_auc": 1.0,
+          "column_stat": {
+            "name": 0.0014374726700706786,
+            "surname": 0.10096454760168329,
+            "birthyear": 0.00014507403267467937,
+            "birthplace": 0.001235262272336715,
+            "position": 0.000298000064763216,
+            "team": 7.495198355023707e-05,
+            "city": 0.0003289460882759485,
+            "stadium": 8.469415247681161e-05,
+            "season": 0.0026670118742836,
+            "manager": 0.00024175890251004176
+          },
+          "focus_pr_auc": 0.42938782176515744,
+          "seconds": 57.69861960411072
+        }
+      },
+      "column_auc_defined": true,
+      "seconds": 248.66053819656372
+    },
+    {
+      "dataset": "tax",
+      "n_rows": 8000,
+      "n_rows_full": 200000,
+      "n_cols": 15,
+      "prevalence": 0.0011416666666666667,
+      "n_corrupted_cells": 137,
+      "scored_columns": [
+        "gender",
+        "area_code",
+        "zip",
+        "marital_status",
+        "has_child",
+        "salary",
+        "rate",
+        "single_exemp",
+        "married_exemp",
+        "child_exemp"
+      ],
+      "corrupted_columns": [
+        "f_name",
+        "l_name",
+        "city",
+        "state",
+        "zip",
+        "marital_status",
+        "has_child",
+        "single_exemp",
+        "child_exemp"
+      ],
+      "baseline_column_auc": 0.4,
+      "baseline_column_stat": {
+        "f_name": 0.0,
+        "l_name": 0.0,
+        "gender": 0.44697248925635924,
+        "area_code": 0.38767754477271343,
+        "phone": 0.0,
+        "city": 0.0,
+        "state": 0.0,
+        "zip": 0.40111773306633874,
+        "marital_status": 0.10937616987396086,
+        "has_child": 0.11280376906136806,
+        "salary": 0.6598586623134002,
+        "rate": 0.40332364399610515,
+        "single_exemp": 0.4418423284260486,
+        "married_exemp": 3.1788573027496242e-06,
+        "child_exemp": 0.44250151882743066
+      },
+      "rare_frac": {
+        "f_name": 1.0,
+        "l_name": 1.0,
+        "gender": 0.0,
+        "area_code": 0.66675,
+        "phone": 1.0,
+        "city": 0.980125,
+        "state": 0.001,
+        "zip": 1.0,
+        "marital_status": 0.0,
+        "has_child": 0.0,
+        "salary": 0.0,
+        "rate": 0.296375,
+        "single_exemp": 0.257375,
+        "married_exemp": 0.11575,
+        "child_exemp": 0.211
+      },
+      "cardinality": {
+        "f_name": 5472,
+        "l_name": 5543,
+        "gender": 2,
+        "area_code": 273,
+        "phone": 7993,
+        "city": 4568,
+        "state": 53,
+        "zip": 6849,
+        "marital_status": 2,
+        "has_child": 2,
+        "salary": 20,
+        "rate": 278,
+        "single_exemp": 57,
+        "married_exemp": 28,
+        "child_exemp": 53
+      },
+      "arms": {
+        "a0": {
+          "arm": "a0",
+          "policy_source": "designed",
+          "fitted": true,
+          "skip_reason": "",
+          "n_labels": 0,
+          "n_positive_labels": 0,
+          "policy_columns": {},
+          "policy_kinds": {},
+          "one_directional": {},
+          "n_synth_injected": 1997,
+          "pr_auc": 0.06294025474971271,
+          "roc_auc": 0.6460096383760754,
+          "best_f1": 0.16494845360824742,
+          "precision_at_best_f1": 0.2807017543859649,
+          "recall_at_best_f1": 0.11678832116788321,
+          "column_auc": 0.43999999999999995,
+          "column_stat": {
+            "f_name": 5.706140369132522e-05,
+            "l_name": 5.792925679494918e-05,
+            "gender": 0.0002555270040528989,
+            "area_code": 0.021586226793947956,
+            "phone": 6.447119511556739e-05,
+            "city": 5.8539780685902625e-05,
+            "state": 0.000661975681417355,
+            "zip": 0.018712659986537913,
+            "marital_status": 0.0002462269345887722,
+            "has_child": 0.00024639061482831606,
+            "salary": 0.00024595872135380975,
+            "rate": 0.0011390472922805184,
+            "single_exemp": 0.019931109658437456,
+            "married_exemp": 0.021564933307680972,
+            "child_exemp": 0.0015377997692674994
+          },
+          "focus_pr_auc": 0.0022627512250347004,
+          "seconds": 25.03719425201416
+        },
+        "a1_rand": {
+          "arm": "a1_rand",
+          "policy_source": "learned",
+          "fitted": false,
+          "skip_reason": "20 labelled cells contained 0 corrupted cells; no policy is estimable. This is a measurement, not a failure to compute.",
+          "n_labels": 20,
+          "n_positive_labels": 0,
+          "policy_columns": {},
+          "policy_kinds": {},
+          "one_directional": {},
+          "n_synth_injected": 0,
+          "pr_auc": null,
+          "roc_auc": null,
+          "best_f1": null,
+          "precision_at_best_f1": null,
+          "recall_at_best_f1": null,
+          "column_auc": null,
+          "column_stat": {},
+          "focus_pr_auc": null,
+          "seconds": 1.1682510375976562e-05
+        },
+        "a1_top": {
+          "arm": "a1_top",
+          "policy_source": "learned",
+          "fitted": true,
+          "skip_reason": "",
+          "n_labels": 20,
+          "n_positive_labels": 12,
+          "policy_columns": {
+            "child_exemp": 0.9166666666666666,
+            "single_exemp": 0.08333333333333333
+          },
+          "policy_kinds": {
+            "child_exemp": {
+              "parse_break": 1.0
+            },
+            "single_exemp": {
+              "parse_break": 1.0
+            }
+          },
+          "one_directional": {
+            "child_exemp": false,
+            "single_exemp": false
+          },
+          "n_synth_injected": 2000,
+          "pr_auc": 0.12830022751004158,
+          "roc_auc": 0.7424417816179555,
+          "best_f1": 0.22077922077922077,
+          "precision_at_best_f1": 1.0,
+          "recall_at_best_f1": 0.12408759124087591,
+          "column_auc": 0.52,
+          "column_stat": {
+            "f_name": 5.508610742127786e-06,
+            "l_name": 5.432029745683273e-06,
+            "gender": 4.2932009251672014e-06,
+            "area_code": 5.255244318254763e-06,
+            "phone": 4.57659199504993e-06,
+            "city": 5.6362208536507895e-06,
+            "state": 6.211797881774247e-06,
+            "zip": 7.541586004428842e-06,
+            "marital_status": 4.387136723901428e-06,
+            "has_child": 4.425253802403191e-06,
+            "salary": 6.410287719239854e-06,
+            "rate": 1.0766352803144038e-05,
+            "single_exemp": 0.0001838458899027621,
+            "married_exemp": 0.0005294604483713583,
+            "child_exemp": 0.00038954098223052073
+          },
+          "focus_pr_auc": 0.0022747173583520536,
+          "seconds": 19.785569667816162
+        },
+        "a1b_bal": {
+          "arm": "a1b_bal",
+          "policy_source": "learned",
+          "fitted": true,
+          "skip_reason": "",
+          "n_labels": 20,
+          "n_positive_labels": 10,
+          "policy_columns": {
+            "l_name": 0.1,
+            "state": 0.4,
+            "zip": 0.5
+          },
+          "policy_kinds": {
+            "l_name": {
+              "swap": 1.0
+            },
+            "state": {
+              "swap": 1.0
+            },
+            "zip": {
+              "swap": 1.0
+            }
+          },
+          "one_directional": {
+            "l_name": true,
+            "state": false,
+            "zip": true
+          },
+          "n_synth_injected": 2000,
+          "pr_auc": 0.029441291513678393,
+          "roc_auc": 0.6109548060069309,
+          "best_f1": 0.16,
+          "precision_at_best_f1": 0.25396825396825395,
+          "recall_at_best_f1": 0.11678832116788321,
+          "column_auc": 0.32,
+          "column_stat": {
+            "f_name": 0.001459393276003647,
+            "l_name": 0.009607932141961996,
+            "gender": 4.539848346862751e-06,
+            "area_code": 5.376393762558004e-05,
+            "phone": 2.847413810223786e-05,
+            "city": 0.0006035186922634581,
+            "state": 0.0006529026724404078,
+            "zip": 0.005980921806874011,
+            "marital_status": 4.529390813537724e-06,
+            "has_child": 4.523355104299803e-06,
+            "salary": 1.2371792954019111e-05,
+            "rate": 4.679271940656685e-06,
+            "single_exemp": 4.471356723736894e-06,
+            "married_exemp": 4.618182065367015e-06,
+            "child_exemp": 5.408517276007403e-06
+          },
+          "focus_pr_auc": 0.009497628144036593,
+          "seconds": 20.826512813568115
+        },
+        "a2": {
+          "arm": "a2",
+          "policy_source": "oracle",
+          "fitted": true,
+          "skip_reason": "",
+          "n_labels": 137,
+          "n_positive_labels": 137,
+          "policy_columns": {
+            "f_name": 0.12408759124087591,
+            "l_name": 0.21897810218978103,
+            "city": 0.072992700729927,
+            "state": 0.1678832116788321,
+            "zip": 0.16058394160583941,
+            "marital_status": 0.051094890510948905,
+            "has_child": 0.08029197080291971,
+            "single_exemp": 0.043795620437956206,
+            "child_exemp": 0.08029197080291971
+          },
+          "policy_kinds": {
+            "f_name": {
+              "swap": 1.0
+            },
+            "l_name": {
+              "swap": 1.0
+            },
+            "city": {
+              "swap": 1.0
+            },
+            "state": {
+              "swap": 1.0
+            },
+            "zip": {
+              "swap": 1.0
+            },
+            "marital_status": {
+              "swap": 1.0
+            },
+            "has_child": {
+              "swap": 1.0
+            },
+            "single_exemp": {
+              "parse_break": 1.0
+            },
+            "child_exemp": {
+              "parse_break": 1.0
+            }
+          },
+          "one_directional": {
+            "f_name": false,
+            "l_name": false,
+            "city": false,
+            "state": false,
+            "zip": true,
+            "marital_status": true,
+            "has_child": true,
+            "single_exemp": false,
+            "child_exemp": false
+          },
+          "n_synth_injected": 2001,
+          "pr_auc": 0.10857710304683847,
+          "roc_auc": 0.85844602636672,
+          "best_f1": 0.17297297297297298,
+          "precision_at_best_f1": 0.3333333333333333,
+          "recall_at_best_f1": 0.11678832116788321,
+          "column_auc": 0.8400000000000001,
+          "column_stat": {
+            "f_name": 0.08061731003798983,
+            "l_name": 0.0898895373806491,
+            "gender": 0.0001280347151766215,
+            "area_code": 6.126851329797816e-05,
+            "phone": 0.00020561175771180207,
+            "city": 0.03278714254600731,
+            "state": 0.011038875498833296,
+            "zip": 0.011508662775687142,
+            "marital_status": 0.004266861800275265,
+            "has_child": 0.02598620849037654,
+            "salary": 5.5657685400215234e-05,
+            "rate": 7.423074940004812e-05,
+            "single_exemp": 0.000526819327637985,
+            "married_exemp": 4.924875922455093e-05,
+            "child_exemp": 5.4543822546673016e-05
+          },
+          "focus_pr_auc": 0.00588527221995253,
+          "seconds": 20.42383050918579
+        }
+      },
+      "column_auc_defined": true,
+      "seconds": 106.6195125579834
+    }
+  ]
+}
