@@ -1,0 +1,2978 @@
+{
+ "generated_by": "experiments/export_demo_trace.py",
+ "seed": 42,
+ "note": "Every per-cell value here is real output from src/pipeline/runner.py. The demo page replays it and computes ONLY the decision arithmetic live. No per-cell ground truth is included: CLAUDE.md section 6 forbids showing a clean value beside a dirty cell in the decision demo.",
+ "datasets": [
+  {
+   "dataset": "breast_cancer",
+   "n_rows": 699,
+   "n_cols": 12,
+   "n_cells": 8388,
+   "n_flagged": 392,
+   "n_decided": 355,
+   "calibration_method": "isotonic",
+   "calibration_note": null,
+   "detection_note": "'breast_cancer': all training labels are constant (1); q is a smoothed constant per group.",
+   "costs": {
+    "wrong": 50.0,
+    "human": 5.0,
+    "abstain": 10.0
+   },
+   "columns": [
+    {
+     "name": "Unnamed: 0",
+     "kind": "id_like",
+     "n_distinct": 658
+    },
+    {
+     "name": "Sample code number",
+     "kind": "id_like",
+     "n_distinct": 623
+    },
+    {
+     "name": "Clump Thickness",
+     "kind": "numerical",
+     "n_distinct": 19
+    },
+    {
+     "name": "Uniformity of Cell Size",
+     "kind": "numerical",
+     "n_distinct": 15
+    },
+    {
+     "name": "Uniformity of Cell Shape",
+     "kind": "numerical",
+     "n_distinct": 15
+    },
+    {
+     "name": "Marginal Adhesion",
+     "kind": "numerical",
+     "n_distinct": 13
+    },
+    {
+     "name": "Single Epithelial Cell Size",
+     "kind": "numerical",
+     "n_distinct": 14
+    },
+    {
+     "name": "Bare Nuclei",
+     "kind": "mixed",
+     "n_distinct": 17
+    },
+    {
+     "name": "Bland Chromatin",
+     "kind": "numerical",
+     "n_distinct": 16
+    },
+    {
+     "name": "Normal Nucleoli",
+     "kind": "numerical",
+     "n_distinct": 15
+    },
+    {
+     "name": "Mitoses",
+     "kind": "numerical",
+     "n_distinct": 12
+    },
+    {
+     "name": "class",
+     "kind": "binary",
+     "n_distinct": 2
+    }
+   ],
+   "preview_rows": [
+    {
+     "Unnamed: 0": "0",
+     "Sample code number": "1000025",
+     "Clump Thickness": "5",
+     "Uniformity of Cell Size": 1.0,
+     "Uniformity of Cell Shape": 1.0,
+     "Marginal Adhesion": "1",
+     "Single Epithelial Cell Size": 2.0,
+     "Bare Nuclei": "1",
+     "Bland Chromatin": 3.0,
+     "Normal Nucleoli": "1",
+     "Mitoses": 1.0,
+     "class": 2
+    },
+    {
+     "Unnamed: 0": "1",
+     "Sample code number": "1002945",
+     "Clump Thickness": "5",
+     "Uniformity of Cell Size": 4.0,
+     "Uniformity of Cell Shape": 4.0,
+     "Marginal Adhesion": "5",
+     "Single Epithelial Cell Size": 7.0,
+     "Bare Nuclei": "10",
+     "Bland Chromatin": 33.0,
+     "Normal Nucleoli": "2",
+     "Mitoses": 1.0,
+     "class": 2
+    },
+    {
+     "Unnamed: 0": "2",
+     "Sample code number": "1015425",
+     "Clump Thickness": "3",
+     "Uniformity of Cell Size": 1.0,
+     "Uniformity of Cell Shape": 1.0,
+     "Marginal Adhesion": "1",
+     "Single Epithelial Cell Size": 2.0,
+     "Bare Nuclei": "2",
+     "Bland Chromatin": 8.0,
+     "Normal Nucleoli": "1",
+     "Mitoses": 1.0,
+     "class": 2
+    },
+    {
+     "Unnamed: 0": "3",
+     "Sample code number": "101627\u01687",
+     "Clump Thickness": "6",
+     "Uniformity of Cell Size": 8.0,
+     "Uniformity of Cell Shape": 8.0,
+     "Marginal Adhesion": "1",
+     "Single Epithelial Cell Size": 2.0,
+     "Bare Nuclei": "4",
+     "Bland Chromatin": 3.0,
+     "Normal Nucleoli": "7",
+     "Mitoses": 1.0,
+     "class": 2
+    },
+    {
+     "Unnamed: 0": "4",
+     "Sample code number": "1017023",
+     "Clump Thickness": "4",
+     "Uniformity of Cell Size": 1.0,
+     "Uniformity of Cell Shape": 1.0,
+     "Marginal Adhesion": "3",
+     "Single Epithelial Cell Size": 2.0,
+     "Bare Nuclei": "1",
+     "Bland Chromatin": 3.0,
+     "Normal Nucleoli": null,
+     "Mitoses": 1.0,
+     "class": 2
+    },
+    {
+     "Unnamed: 0": "5",
+     "Sample code number": "1017122",
+     "Clump Thickness": "8",
+     "Uniformity of Cell Size": 10.0,
+     "Uniformity of Cell Shape": 10.0,
+     "Marginal Adhesion": "8",
+     "Single Epithelial Cell Size": 7.0,
+     "Bare Nuclei": null,
+     "Bland Chromatin": 9.0,
+     "Normal Nucleoli": "2",
+     "Mitoses": 1.0,
+     "class": 4
+    },
+    {
+     "Unnamed: 0": "6",
+     "Sample code number": "1018099",
+     "Clump Thickness": "1",
+     "Uniformity of Cell Size": 1.0,
+     "Uniformity of Cell Shape": 1.0,
+     "Marginal Adhesion": "11",
+     "Single Epithelial Cell Size": 2.0,
+     "Bare Nuclei": "10",
+     "Bland Chromatin": 3.0,
+     "Normal Nucleoli": "1",
+     "Mitoses": 1.0,
+     "class": 2
+    },
+    {
+     "Unnamed: 0": "7",
+     "Sample code number": "1018561",
+     "Clump Thickness": "2",
+     "Uniformity of Cell Size": 1.0,
+     "Uniformity of Cell Shape": 2.0,
+     "Marginal Adhesion": "1",
+     "Single Epithelial Cell Size": 2.0,
+     "Bare Nuclei": null,
+     "Bland Chromatin": 3.0,
+     "Normal Nucleoli": "1",
+     "Mitoses": 1.0,
+     "class": 2
+    }
+   ],
+   "preview_flagged": [
+    [
+     1,
+     "Bland Chromatin"
+    ],
+    [
+     4,
+     "Normal Nucleoli"
+    ],
+    [
+     5,
+     "Bare Nuclei"
+    ],
+    [
+     6,
+     "Marginal Adhesion"
+    ],
+    [
+     7,
+     "Bare Nuclei"
+    ]
+   ],
+   "cells": [
+    {
+     "row_id": 36,
+     "column": "Clump Thickness",
+     "dirty_value": "1a0",
+     "detection": {
+      "method": "format_check",
+      "score": 0.85,
+      "error_type": "FORMAT_ERROR",
+      "reason": "Column 'Clump Thickness' is numerical (dtype int64) but dirty value '1a0' cannot be parsed as a number."
+     },
+     "candidates": [
+      {
+       "value": 10,
+       "probability": 0.454466
+      },
+      {
+       "value": 1,
+       "probability": 0.371407
+      },
+      {
+       "value": 4,
+       "probability": 0.174127
+      }
+     ],
+     "repair_method": "format_numerical_repair",
+     "uncertainty": {
+      "raw_confidence": 0.454466,
+      "self_consistency": 1.0,
+      "entropy": 1.030638,
+      "normalized_entropy": 0.938127,
+      "n_candidates": 3
+     },
+     "calibration": {
+      "raw": 0.454466,
+      "p": 0.5530303030303032,
+      "shift": 0.09856430303030322
+     },
+     "q": 0.6666666666666666,
+     "expected_costs": {
+      "auto": 22.34848484848484,
+      "human": 5.0,
+      "abstain": 6.666666666666666
+     },
+     "action": "HUMAN_REVIEW",
+     "context": [
+      {
+       "column": "Unnamed: 0",
+       "value": "36",
+       "is_target": false
+      },
+      {
+       "column": "Sample code number",
+       "value": "1080185",
+       "is_target": false
+      },
+      {
+       "column": "Clump Thickness",
+       "value": "1a0",
+       "is_target": true
+      },
+      {
+       "column": "Uniformity of Cell Size",
+       "value": 10.0,
+       "is_target": false
+      },
+      {
+       "column": "Uniformity of Cell Shape",
+       "value": 10.0,
+       "is_target": false
+      },
+      {
+       "column": "Marginal Adhesion",
+       "value": "1",
+       "is_target": false
+      },
+      {
+       "column": "Single Epithelial Cell Size",
+       "value": 6.0,
+       "is_target": false
+      },
+      {
+       "column": "Bare Nuclei",
+       "value": "1",
+       "is_target": false
+      },
+      {
+       "column": "Bland Chromatin",
+       "value": null,
+       "is_target": false
+      },
+      {
+       "column": "Normal Nucleoli",
+       "value": "9",
+       "is_target": false
+      },
+      {
+       "column": "Mitoses",
+       "value": 1.0,
+       "is_target": false
+      },
+      {
+       "column": "class",
+       "value": 4,
+       "is_target": false
+      }
+     ]
+    },
+    {
+     "row_id": 5,
+     "column": "Bare Nuclei",
+     "dirty_value": null,
+     "detection": {
+      "method": "missing_value",
+      "score": 1.0,
+      "error_type": "MISSING",
+      "reason": "Cell is NaN"
+     },
+     "candidates": [
+      {
+       "value": "1",
+       "probability": 0.615165
+      },
+      {
+       "value": "10",
+       "probability": 0.269441
+      },
+      {
+       "value": "2",
+       "probability": 0.115394
+      }
+     ],
+     "repair_method": "frequency_repair",
+     "uncertainty": {
+      "raw_confidence": 0.615165,
+      "self_consistency": 1.0,
+      "entropy": 0.901416,
+      "normalized_entropy": 0.820504,
+      "n_candidates": 3
+     },
+     "calibration": {
+      "raw": 0.615165,
+      "p": 0.5530303030303032,
+      "shift": -0.06213469696969676
+     },
+     "q": 0.9942528735632183,
+     "expected_costs": {
+      "auto": 22.34848484848484,
+      "human": 5.0,
+      "abstain": 9.942528735632184
+     },
+     "action": "HUMAN_REVIEW",
+     "context": [
+      {
+       "column": "Unnamed: 0",
+       "value": "5",
+       "is_target": false
+      },
+      {
+       "column": "Sample code number",
+       "value": "1017122",
+       "is_target": false
+      },
+      {
+       "column": "Clump Thickness",
+       "value": "8",
+       "is_target": false
+      },
+      {
+       "column": "Uniformity of Cell Size",
+       "value": 10.0,
+       "is_target": false
+      },
+      {
+       "column": "Uniformity of Cell Shape",
+       "value": 10.0,
+       "is_target": false
+      },
+      {
+       "column": "Marginal Adhesion",
+       "value": "8",
+       "is_target": false
+      },
+      {
+       "column": "Single Epithelial Cell Size",
+       "value": 7.0,
+       "is_target": false
+      },
+      {
+       "column": "Bare Nuclei",
+       "value": null,
+       "is_target": true
+      },
+      {
+       "column": "Bland Chromatin",
+       "value": 9.0,
+       "is_target": false
+      },
+      {
+       "column": "Normal Nucleoli",
+       "value": "2",
+       "is_target": false
+      },
+      {
+       "column": "Mitoses",
+       "value": 1.0,
+       "is_target": false
+      },
+      {
+       "column": "class",
+       "value": 4,
+       "is_target": false
+      }
+     ]
+    },
+    {
+     "row_id": 1,
+     "column": "Bland Chromatin",
+     "dirty_value": 33.0,
+     "detection": {
+      "method": "range_check",
+      "score": 0.9,
+      "error_type": "OUT_OF_RANGE",
+      "reason": "Value 33.0 is outside the observed clean range [1.0, 10.0] for column 'Bland Chromatin'."
+     },
+     "candidates": [
+      {
+       "value": 3,
+       "probability": 0.713407
+      },
+      {
+       "value": 10,
+       "probability": 0.286593
+      }
+     ],
+     "repair_method": "range_normalisation_repair",
+     "uncertainty": {
+      "raw_confidence": 0.713407,
+      "self_consistency": 1.0,
+      "entropy": 0.599073,
+      "normalized_entropy": 0.864279,
+      "n_candidates": 2
+     },
+     "calibration": {
+      "raw": 0.713407,
+      "p": 0.9473684210526315,
+      "shift": 0.2339614210526315
+     },
+     "q": 0.9894736842105263,
+     "expected_costs": {
+      "auto": 2.631578947368424,
+      "human": 5.0,
+      "abstain": 9.894736842105264
+     },
+     "action": "ACCEPT_REPAIR",
+     "context": [
+      {
+       "column": "Unnamed: 0",
+       "value": "1",
+       "is_target": false
+      },
+      {
+       "column": "Sample code number",
+       "value": "1002945",
+       "is_target": false
+      },
+      {
+       "column": "Clump Thickness",
+       "value": "5",
+       "is_target": false
+      },
+      {
+       "column": "Uniformity of Cell Size",
+       "value": 4.0,
+       "is_target": false
+      },
+      {
+       "column": "Uniformity of Cell Shape",
+       "value": 4.0,
+       "is_target": false
+      },
+      {
+       "column": "Marginal Adhesion",
+       "value": "5",
+       "is_target": false
+      },
+      {
+       "column": "Single Epithelial Cell Size",
+       "value": 7.0,
+       "is_target": false
+      },
+      {
+       "column": "Bare Nuclei",
+       "value": "10",
+       "is_target": false
+      },
+      {
+       "column": "Bland Chromatin",
+       "value": 33.0,
+       "is_target": true
+      },
+      {
+       "column": "Normal Nucleoli",
+       "value": "2",
+       "is_target": false
+      },
+      {
+       "column": "Mitoses",
+       "value": 1.0,
+       "is_target": false
+      },
+      {
+       "column": "class",
+       "value": 2,
+       "is_target": false
+      }
+     ]
+    },
+    {
+     "row_id": 142,
+     "column": "Bare Nuclei",
+     "dirty_value": "55",
+     "detection": {
+      "method": "vocab_check",
+      "score": 0.7,
+      "error_type": "NOVEL_CATEGORY",
+      "reason": "Value '55' is not in the known vocabulary (11 values) for column 'Bare Nuclei'."
+     },
+     "candidates": [
+      {
+       "value": "55",
+       "probability": 0.585147
+      },
+      {
+       "value": "5",
+       "probability": 0.382949
+      },
+      {
+       "value": "1",
+       "probability": 0.031904
+      }
+     ],
+     "repair_method": "similarity_repair",
+     "uncertainty": {
+      "raw_confidence": 0.585147,
+      "self_consistency": 1.0,
+      "entropy": 0.791061,
+      "normalized_entropy": 0.720054,
+      "n_candidates": 3
+     },
+     "calibration": {
+      "raw": 0.585147,
+      "p": 0.5530303030303032,
+      "shift": -0.03211669696969677
+     },
+     "q": 0.9090909090909091,
+     "expected_costs": {
+      "auto": 22.34848484848484,
+      "human": 5.0,
+      "abstain": 9.09090909090909
+     },
+     "action": "HUMAN_REVIEW",
+     "context": [
+      {
+       "column": "Unnamed: 0",
+       "value": "142",
+       "is_target": false
+      },
+      {
+       "column": "Sample code number",
+       "value": "1183983",
+       "is_target": false
+      },
+      {
+       "column": "Clump Thickness",
+       "value": "9",
+       "is_target": false
+      },
+      {
+       "column": "Uniformity of Cell Size",
+       "value": 5.0,
+       "is_target": false
+      },
+      {
+       "column": "Uniformity of Cell Shape",
+       "value": 5.0,
+       "is_target": false
+      },
+      {
+       "column": "Marginal Adhesion",
+       "value": "4",
+       "is_target": false
+      },
+      {
+       "column": "Single Epithelial Cell Size",
+       "value": 4.0,
+       "is_target": false
+      },
+      {
+       "column": "Bare Nuclei",
+       "value": "55",
+       "is_target": true
+      },
+      {
+       "column": "Bland Chromatin",
+       "value": 4.0,
+       "is_target": false
+      },
+      {
+       "column": "Normal Nucleoli",
+       "value": "3",
+       "is_target": false
+      },
+      {
+       "column": "Mitoses",
+       "value": 3.0,
+       "is_target": false
+      },
+      {
+       "column": "class",
+       "value": 4,
+       "is_target": false
+      }
+     ]
+    },
+    {
+     "row_id": 73,
+     "column": "Marginal Adhesion",
+     "dirty_value": "a10",
+     "detection": {
+      "method": "format_check",
+      "score": 0.85,
+      "error_type": "FORMAT_ERROR",
+      "reason": "Column 'Marginal Adhesion' is numerical (dtype int64) but dirty value 'a10' cannot be parsed as a number."
+     },
+     "candidates": [
+      {
+       "value": 10,
+       "probability": 0.742105
+      },
+      {
+       "value": 1,
+       "probability": 0.257895
+      }
+     ],
+     "repair_method": "format_numerical_repair",
+     "uncertainty": {
+      "raw_confidence": 0.742105,
+      "self_consistency": 1.0,
+      "entropy": 0.570844,
+      "normalized_entropy": 0.823553,
+      "n_candidates": 2
+     },
+     "calibration": {
+      "raw": 0.742105,
+      "p": 0.9473684210526315,
+      "shift": 0.2052634210526315
+     },
+     "q": 0.6666666666666666,
+     "expected_costs": {
+      "auto": 2.631578947368424,
+      "human": 5.0,
+      "abstain": 6.666666666666666
+     },
+     "action": "ACCEPT_REPAIR",
+     "context": [
+      {
+       "column": "Unnamed: 0",
+       "value": "73",
+       "is_target": false
+      },
+      {
+       "column": "Sample code number",
+       "value": "1125035",
+       "is_target": false
+      },
+      {
+       "column": "Clump Thickness",
+       "value": "9",
+       "is_target": false
+      },
+      {
+       "column": "Uniformity of Cell Size",
+       "value": 4.0,
+       "is_target": false
+      },
+      {
+       "column": "Uniformity of Cell Shape",
+       "value": 5.0,
+       "is_target": false
+      },
+      {
+       "column": "Marginal Adhesion",
+       "value": "a10",
+       "is_target": true
+      },
+      {
+       "column": "Single Epithelial Cell Size",
+       "value": 6.0,
+       "is_target": false
+      },
+      {
+       "column": "Bare Nuclei",
+       "value": null,
+       "is_target": false
+      },
+      {
+       "column": "Bland Chromatin",
+       "value": 4.0,
+       "is_target": false
+      },
+      {
+       "column": "Normal Nucleoli",
+       "value": "8",
+       "is_target": false
+      },
+      {
+       "column": "Mitoses",
+       "value": 1.0,
+       "is_target": false
+      },
+      {
+       "column": "class",
+       "value": 4,
+       "is_target": false
+      }
+     ]
+    },
+    {
+     "row_id": 7,
+     "column": "Bare Nuclei",
+     "dirty_value": null,
+     "detection": {
+      "method": "missing_value",
+      "score": 1.0,
+      "error_type": "MISSING",
+      "reason": "Cell is NaN"
+     },
+     "candidates": [
+      {
+       "value": "1",
+       "probability": 0.622941
+      },
+      {
+       "value": "10",
+       "probability": 0.257017
+      },
+      {
+       "value": "2",
+       "probability": 0.120042
+      }
+     ],
+     "repair_method": "frequency_repair",
+     "uncertainty": {
+      "raw_confidence": 0.622941,
+      "self_consistency": 1.0,
+      "entropy": 0.898505,
+      "normalized_entropy": 0.817855,
+      "n_candidates": 3
+     },
+     "calibration": {
+      "raw": 0.622941,
+      "p": 0.5530303030303032,
+      "shift": -0.06991069696969676
+     },
+     "q": 0.9942528735632183,
+     "expected_costs": {
+      "auto": 22.34848484848484,
+      "human": 5.0,
+      "abstain": 9.942528735632184
+     },
+     "action": "HUMAN_REVIEW",
+     "context": [
+      {
+       "column": "Unnamed: 0",
+       "value": "7",
+       "is_target": false
+      },
+      {
+       "column": "Sample code number",
+       "value": "1018561",
+       "is_target": false
+      },
+      {
+       "column": "Clump Thickness",
+       "value": "2",
+       "is_target": false
+      },
+      {
+       "column": "Uniformity of Cell Size",
+       "value": 1.0,
+       "is_target": false
+      },
+      {
+       "column": "Uniformity of Cell Shape",
+       "value": 2.0,
+       "is_target": false
+      },
+      {
+       "column": "Marginal Adhesion",
+       "value": "1",
+       "is_target": false
+      },
+      {
+       "column": "Single Epithelial Cell Size",
+       "value": 2.0,
+       "is_target": false
+      },
+      {
+       "column": "Bare Nuclei",
+       "value": null,
+       "is_target": true
+      },
+      {
+       "column": "Bland Chromatin",
+       "value": 3.0,
+       "is_target": false
+      },
+      {
+       "column": "Normal Nucleoli",
+       "value": "1",
+       "is_target": false
+      },
+      {
+       "column": "Mitoses",
+       "value": 1.0,
+       "is_target": false
+      },
+      {
+       "column": "class",
+       "value": 2,
+       "is_target": false
+      }
+     ]
+    }
+   ],
+   "seconds": 0.8
+  },
+  {
+   "dataset": "smartfactory",
+   "n_rows": 23645,
+   "n_cols": 19,
+   "n_cells": 449255,
+   "n_flagged": 7093,
+   "n_decided": 7093,
+   "calibration_method": "isotonic",
+   "calibration_note": null,
+   "detection_note": "'smartfactory': all training labels are constant (1); q is a smoothed constant per group.",
+   "costs": {
+    "wrong": 25.0,
+    "human": 2.0,
+    "abstain": 5.0
+   },
+   "columns": [
+    {
+     "name": "labels",
+     "kind": "binary",
+     "n_distinct": 2
+    },
+    {
+     "name": "i_w_blo_weg",
+     "kind": "numerical",
+     "n_distinct": 614
+    },
+    {
+     "name": "o_w_blo_power",
+     "kind": "numerical",
+     "n_distinct": 1056
+    },
+    {
+     "name": "o_w_blo_voltage",
+     "kind": "numerical",
+     "n_distinct": 76
+    },
+    {
+     "name": "i_w_bhl_weg",
+     "kind": "numerical",
+     "n_distinct": 1073
+    },
+    {
+     "name": "o_w_bhl_power",
+     "kind": "numerical",
+     "n_distinct": 1187
+    },
+    {
+     "name": "o_w_bhl_voltage",
+     "kind": "numerical",
+     "n_distinct": 62
+    },
+    {
+     "name": "i_w_bhr_weg",
+     "kind": "numerical",
+     "n_distinct": 1074
+    },
+    {
+     "name": "o_w_bhr_power",
+     "kind": "numerical",
+     "n_distinct": 1165
+    },
+    {
+     "name": "o_w_bhr_voltage",
+     "kind": "numerical",
+     "n_distinct": 55
+    },
+    {
+     "name": "i_w_bru_weg",
+     "kind": "numerical",
+     "n_distinct": 844
+    },
+    {
+     "name": "o_w_bru_power",
+     "kind": "numerical",
+     "n_distinct": 948
+    },
+    {
+     "name": "o_w_bru_voltage",
+     "kind": "numerical",
+     "n_distinct": 58
+    },
+    {
+     "name": "i_w_hr_weg",
+     "kind": "numerical",
+     "n_distinct": 412
+    },
+    {
+     "name": "o_w_hr_power",
+     "kind": "numerical",
+     "n_distinct": 1416
+    },
+    {
+     "name": "o_w_hr_voltage",
+     "kind": "numerical",
+     "n_distinct": 274
+    },
+    {
+     "name": "i_w_hl_weg",
+     "kind": "numerical",
+     "n_distinct": 442
+    },
+    {
+     "name": "o_w_hl_power",
+     "kind": "numerical",
+     "n_distinct": 1245
+    },
+    {
+     "name": "o_w_hl_voltage",
+     "kind": "numerical",
+     "n_distinct": 277
+    }
+   ],
+   "preview_rows": [
+    {
+     "labels": 0.0,
+     "i_w_blo_weg": -107.0,
+     "o_w_blo_power": 0.0,
+     "o_w_blo_voltage": 0.0,
+     "i_w_bhl_weg": 0.0,
+     "o_w_bhl_power": 0.0,
+     "o_w_bhl_voltage": 0.0,
+     "i_w_bhr_weg": -1268.0,
+     "o_w_bhr_power": 0.0,
+     "o_w_bhr_voltage": 0.0,
+     "i_w_bru_weg": -26.0,
+     "o_w_bru_power": 84.0,
+     "o_w_bru_voltage": 11.0,
+     "i_w_hr_weg": 0.0,
+     "o_w_hr_power": 7168.0,
+     "o_w_hr_voltage": 26.0,
+     "i_w_hl_weg": 0.0,
+     "o_w_hl_power": 7720.0,
+     "o_w_hl_voltage": 24.0
+    },
+    {
+     "labels": 0.0,
+     "i_w_blo_weg": -107.0,
+     "o_w_blo_power": 0.0,
+     "o_w_blo_voltage": 0.0,
+     "i_w_bhl_weg": 0.0,
+     "o_w_bhl_power": null,
+     "o_w_bhl_voltage": 0.0,
+     "i_w_bhr_weg": -1268.0,
+     "o_w_bhr_power": 0.0,
+     "o_w_bhr_voltage": 0.0,
+     "i_w_bru_weg": -26.0,
+     "o_w_bru_power": 84.0,
+     "o_w_bru_voltage": 11.0,
+     "i_w_hr_weg": 0.0,
+     "o_w_hr_power": 7168.0,
+     "o_w_hr_voltage": 26.0,
+     "i_w_hl_weg": 0.0,
+     "o_w_hl_power": 7720.0,
+     "o_w_hl_voltage": 24.0
+    },
+    {
+     "labels": 0.0,
+     "i_w_blo_weg": -107.0,
+     "o_w_blo_power": 0.0,
+     "o_w_blo_voltage": 0.0,
+     "i_w_bhl_weg": 0.0,
+     "o_w_bhl_power": 0.0,
+     "o_w_bhl_voltage": 0.0,
+     "i_w_bhr_weg": -1268.0,
+     "o_w_bhr_power": 0.0,
+     "o_w_bhr_voltage": 0.0,
+     "i_w_bru_weg": -26.0,
+     "o_w_bru_power": 84.0,
+     "o_w_bru_voltage": 11.0,
+     "i_w_hr_weg": 0.0,
+     "o_w_hr_power": 7168.0,
+     "o_w_hr_voltage": 26.0,
+     "i_w_hl_weg": 0.0,
+     "o_w_hl_power": 7720.0,
+     "o_w_hl_voltage": 24.0
+    },
+    {
+     "labels": 0.0,
+     "i_w_blo_weg": -107.0,
+     "o_w_blo_power": 0.0,
+     "o_w_blo_voltage": 0.0,
+     "i_w_bhl_weg": 0.0,
+     "o_w_bhl_power": 0.0,
+     "o_w_bhl_voltage": 0.0,
+     "i_w_bhr_weg": -1268.0,
+     "o_w_bhr_power": 0.0,
+     "o_w_bhr_voltage": 0.0,
+     "i_w_bru_weg": 29.0,
+     "o_w_bru_power": 21725.0,
+     "o_w_bru_voltage": 54.0,
+     "i_w_hr_weg": 0.0,
+     "o_w_hr_power": 6726.0,
+     "o_w_hr_voltage": 26.0,
+     "i_w_hl_weg": 0.0,
+     "o_w_hl_power": 10756.0,
+     "o_w_hl_voltage": 26.0
+    },
+    {
+     "labels": 0.0,
+     "i_w_blo_weg": -107.0,
+     "o_w_blo_power": 0.0,
+     "o_w_blo_voltage": 0.0,
+     "i_w_bhl_weg": 0.0,
+     "o_w_bhl_power": 0.0,
+     "o_w_bhl_voltage": 0.0,
+     "i_w_bhr_weg": -1268.0,
+     "o_w_bhr_power": 0.0,
+     "o_w_bhr_voltage": 0.0,
+     "i_w_bru_weg": 29.0,
+     "o_w_bru_power": 21725.0,
+     "o_w_bru_voltage": 54.0,
+     "i_w_hr_weg": 0.0,
+     "o_w_hr_power": 6726.0,
+     "o_w_hr_voltage": 26.0,
+     "i_w_hl_weg": 0.0,
+     "o_w_hl_power": 10756.0,
+     "o_w_hl_voltage": 26.0
+    },
+    {
+     "labels": 0.0,
+     "i_w_blo_weg": -107.0,
+     "o_w_blo_power": 0.0,
+     "o_w_blo_voltage": 0.0,
+     "i_w_bhl_weg": 0.0,
+     "o_w_bhl_power": 0.0,
+     "o_w_bhl_voltage": 0.0,
+     "i_w_bhr_weg": -1268.0,
+     "o_w_bhr_power": 0.0,
+     "o_w_bhr_voltage": null,
+     "i_w_bru_weg": 29.0,
+     "o_w_bru_power": 21725.0,
+     "o_w_bru_voltage": 54.0,
+     "i_w_hr_weg": 0.0,
+     "o_w_hr_power": 6726.0,
+     "o_w_hr_voltage": 26.0,
+     "i_w_hl_weg": 0.0,
+     "o_w_hl_power": 10756.0,
+     "o_w_hl_voltage": 26.0
+    },
+    {
+     "labels": 0.0,
+     "i_w_blo_weg": -107.0,
+     "o_w_blo_power": 0.0,
+     "o_w_blo_voltage": 0.0,
+     "i_w_bhl_weg": 0.0,
+     "o_w_bhl_power": 0.0,
+     "o_w_bhl_voltage": 0.0,
+     "i_w_bhr_weg": -1268.0,
+     "o_w_bhr_power": 0.0,
+     "o_w_bhr_voltage": 0.0,
+     "i_w_bru_weg": 107.0,
+     "o_w_bru_power": 23072.0,
+     "o_w_bru_voltage": 56.0,
+     "i_w_hr_weg": 0.0,
+     "o_w_hr_power": 6726.0,
+     "o_w_hr_voltage": 26.0,
+     "i_w_hl_weg": 0.0,
+     "o_w_hl_power": 7408.0,
+     "o_w_hl_voltage": 24.0
+    },
+    {
+     "labels": 0.0,
+     "i_w_blo_weg": -107.0,
+     "o_w_blo_power": 0.0,
+     "o_w_blo_voltage": 0.0,
+     "i_w_bhl_weg": 0.0,
+     "o_w_bhl_power": 0.0,
+     "o_w_bhl_voltage": 0.0,
+     "i_w_bhr_weg": -1268.0,
+     "o_w_bhr_power": 0.0,
+     "o_w_bhr_voltage": 0.0,
+     "i_w_bru_weg": 107.0,
+     "o_w_bru_power": 23072.0,
+     "o_w_bru_voltage": 56.0,
+     "i_w_hr_weg": 0.0,
+     "o_w_hr_power": 6726.0,
+     "o_w_hr_voltage": 26.0,
+     "i_w_hl_weg": 0.0,
+     "o_w_hl_power": 7408.0,
+     "o_w_hl_voltage": 24.0
+    }
+   ],
+   "preview_flagged": [
+    [
+     1,
+     "o_w_bhl_power"
+    ],
+    [
+     5,
+     "o_w_bhr_voltage"
+    ]
+   ],
+   "cells": [
+    {
+     "row_id": 29,
+     "column": "i_w_bhl_weg",
+     "dirty_value": null,
+     "detection": {
+      "method": "missing_value",
+      "score": 1.0,
+      "error_type": "MISSING",
+      "reason": "Cell is NaN"
+     },
+     "candidates": [
+      {
+       "value": 0,
+       "probability": 0.532992
+      },
+      {
+       "value": -321,
+       "probability": 0.32016
+      },
+      {
+       "value": 450,
+       "probability": 0.146848
+      }
+     ],
+     "repair_method": "statistical_repair",
+     "uncertainty": {
+      "raw_confidence": 0.532992,
+      "self_consistency": 1.0,
+      "entropy": 0.981733,
+      "normalized_entropy": 0.893612,
+      "n_candidates": 3
+     },
+     "calibration": {
+      "raw": 0.532992,
+      "p": 0.11430527036276524,
+      "shift": -0.4186867296372348
+     },
+     "q": 0.9997987117552335,
+     "expected_costs": {
+      "auto": 22.142368240930868,
+      "human": 2.0,
+      "abstain": 4.998993558776167
+     },
+     "action": "HUMAN_REVIEW",
+     "context": [
+      {
+       "column": "labels",
+       "value": 0.0,
+       "is_target": false
+      },
+      {
+       "column": "i_w_blo_weg",
+       "value": -107.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_blo_power",
+       "value": 0.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_blo_voltage",
+       "value": 0.0,
+       "is_target": false
+      },
+      {
+       "column": "i_w_bhl_weg",
+       "value": null,
+       "is_target": true
+      },
+      {
+       "column": "o_w_bhl_power",
+       "value": 0.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_bhl_voltage",
+       "value": 0.0,
+       "is_target": false
+      },
+      {
+       "column": "i_w_bhr_weg",
+       "value": 210.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_bhr_power",
+       "value": 23722.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_bhr_voltage",
+       "value": 58.0,
+       "is_target": false
+      },
+      {
+       "column": "i_w_bru_weg",
+       "value": 571.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_bru_power",
+       "value": 4340.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_bru_voltage",
+       "value": 31.0,
+       "is_target": false
+      },
+      {
+       "column": "i_w_hr_weg",
+       "value": 0.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_hr_power",
+       "value": 19867.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_hr_voltage",
+       "value": 27.0,
+       "is_target": false
+      },
+      {
+       "column": "i_w_hl_weg",
+       "value": 0.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_hl_power",
+       "value": 10366.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_hl_voltage",
+       "value": 24.0,
+       "is_target": false
+      }
+     ]
+    },
+    {
+     "row_id": 47,
+     "column": "i_w_bhl_weg",
+     "dirty_value": null,
+     "detection": {
+      "method": "missing_value",
+      "score": 1.0,
+      "error_type": "MISSING",
+      "reason": "Cell is NaN"
+     },
+     "candidates": [
+      {
+       "value": 0,
+       "probability": 0.538249
+      },
+      {
+       "value": -321,
+       "probability": 0.31411
+      },
+      {
+       "value": 450,
+       "probability": 0.147641
+      }
+     ],
+     "repair_method": "statistical_repair",
+     "uncertainty": {
+      "raw_confidence": 0.538249,
+      "self_consistency": 1.0,
+      "entropy": 0.979586,
+      "normalized_entropy": 0.891658,
+      "n_candidates": 3
+     },
+     "calibration": {
+      "raw": 0.538249,
+      "p": 0.11430527036276524,
+      "shift": -0.42394372963723476
+     },
+     "q": 0.9997987117552335,
+     "expected_costs": {
+      "auto": 22.142368240930868,
+      "human": 2.0,
+      "abstain": 4.998993558776167
+     },
+     "action": "HUMAN_REVIEW",
+     "context": [
+      {
+       "column": "labels",
+       "value": 0.0,
+       "is_target": false
+      },
+      {
+       "column": "i_w_blo_weg",
+       "value": -107.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_blo_power",
+       "value": 0.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_blo_voltage",
+       "value": 0.0,
+       "is_target": false
+      },
+      {
+       "column": "i_w_bhl_weg",
+       "value": null,
+       "is_target": true
+      },
+      {
+       "column": "o_w_bhl_power",
+       "value": 0.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_bhl_voltage",
+       "value": 0.0,
+       "is_target": false
+      },
+      {
+       "column": "i_w_bhr_weg",
+       "value": 395.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_bhr_power",
+       "value": 0.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_bhr_voltage",
+       "value": 0.0,
+       "is_target": false
+      },
+      {
+       "column": "i_w_bru_weg",
+       "value": 581.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_bru_power",
+       "value": 7.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_bru_voltage",
+       "value": 1.0,
+       "is_target": false
+      },
+      {
+       "column": "i_w_hr_weg",
+       "value": -816.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_hr_power",
+       "value": 25813.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_hr_voltage",
+       "value": 118.0,
+       "is_target": false
+      },
+      {
+       "column": "i_w_hl_weg",
+       "value": -817.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_hl_power",
+       "value": 14912.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_hl_voltage",
+       "value": 115.0,
+       "is_target": false
+      }
+     ]
+    },
+    {
+     "row_id": 179,
+     "column": "i_w_bhl_weg",
+     "dirty_value": null,
+     "detection": {
+      "method": "missing_value",
+      "score": 1.0,
+      "error_type": "MISSING",
+      "reason": "Cell is NaN"
+     },
+     "candidates": [
+      {
+       "value": 0,
+       "probability": 0.558254
+      },
+      {
+       "value": -321,
+       "probability": 0.276321
+      },
+      {
+       "value": 450,
+       "probability": 0.165424
+      }
+     ],
+     "repair_method": "statistical_repair",
+     "uncertainty": {
+      "raw_confidence": 0.558254,
+      "self_consistency": 1.0,
+      "entropy": 0.978469,
+      "normalized_entropy": 0.890641,
+      "n_candidates": 3
+     },
+     "calibration": {
+      "raw": 0.558254,
+      "p": 0.11769005847953216,
+      "shift": -0.44056394152046785
+     },
+     "q": 0.9997987117552335,
+     "expected_costs": {
+      "auto": 22.057748538011694,
+      "human": 2.0,
+      "abstain": 4.998993558776167
+     },
+     "action": "HUMAN_REVIEW",
+     "context": [
+      {
+       "column": "labels",
+       "value": 0.0,
+       "is_target": false
+      },
+      {
+       "column": "i_w_blo_weg",
+       "value": 8.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_blo_power",
+       "value": 23.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_blo_voltage",
+       "value": 1.0,
+       "is_target": false
+      },
+      {
+       "column": "i_w_bhl_weg",
+       "value": null,
+       "is_target": true
+      },
+      {
+       "column": "o_w_bhl_power",
+       "value": 23352.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_bhl_voltage",
+       "value": 55.0,
+       "is_target": false
+      },
+      {
+       "column": "i_w_bhr_weg",
+       "value": 476.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_bhr_power",
+       "value": 0.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_bhr_voltage",
+       "value": 1.0,
+       "is_target": false
+      },
+      {
+       "column": "i_w_bru_weg",
+       "value": 581.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_bru_power",
+       "value": 0.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_bru_voltage",
+       "value": 0.0,
+       "is_target": false
+      },
+      {
+       "column": "i_w_hr_weg",
+       "value": 0.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_hr_power",
+       "value": 2128.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_hr_voltage",
+       "value": 24.0,
+       "is_target": false
+      },
+      {
+       "column": "i_w_hl_weg",
+       "value": 0.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_hl_power",
+       "value": 7408.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_hl_voltage",
+       "value": 26.0,
+       "is_target": false
+      }
+     ]
+    },
+    {
+     "row_id": 186,
+     "column": "i_w_bhl_weg",
+     "dirty_value": null,
+     "detection": {
+      "method": "missing_value",
+      "score": 1.0,
+      "error_type": "MISSING",
+      "reason": "Cell is NaN"
+     },
+     "candidates": [
+      {
+       "value": 0,
+       "probability": 0.494369
+      },
+      {
+       "value": -321,
+       "probability": 0.313824
+      },
+      {
+       "value": 450,
+       "probability": 0.191806
+      }
+     ],
+     "repair_method": "statistical_repair",
+     "uncertainty": {
+      "raw_confidence": 0.494369,
+      "self_consistency": 1.0,
+      "entropy": 1.028691,
+      "normalized_entropy": 0.936355,
+      "n_candidates": 3
+     },
+     "calibration": {
+      "raw": 0.494369,
+      "p": 0.09895833333333333,
+      "shift": -0.3954106666666667
+     },
+     "q": 0.9997987117552335,
+     "expected_costs": {
+      "auto": 22.526041666666664,
+      "human": 2.0,
+      "abstain": 4.998993558776167
+     },
+     "action": "HUMAN_REVIEW",
+     "context": [
+      {
+       "column": "labels",
+       "value": 0.0,
+       "is_target": false
+      },
+      {
+       "column": "i_w_blo_weg",
+       "value": 8.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_blo_power",
+       "value": 0.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_blo_voltage",
+       "value": 0.0,
+       "is_target": false
+      },
+      {
+       "column": "i_w_bhl_weg",
+       "value": null,
+       "is_target": true
+      },
+      {
+       "column": "o_w_bhl_power",
+       "value": 20832.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_bhl_voltage",
+       "value": 56.0,
+       "is_target": false
+      },
+      {
+       "column": "i_w_bhr_weg",
+       "value": 0.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_bhr_power",
+       "value": 56.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_bhr_voltage",
+       "value": 1.0,
+       "is_target": false
+      },
+      {
+       "column": "i_w_bru_weg",
+       "value": 581.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_bru_power",
+       "value": 0.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_bru_voltage",
+       "value": 0.0,
+       "is_target": false
+      },
+      {
+       "column": "i_w_hr_weg",
+       "value": 0.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_hr_power",
+       "value": 6908.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_hr_voltage",
+       "value": 26.0,
+       "is_target": false
+      },
+      {
+       "column": "i_w_hl_weg",
+       "value": 0.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_hl_power",
+       "value": 11822.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_hl_voltage",
+       "value": 26.0,
+       "is_target": false
+      }
+     ]
+    },
+    {
+     "row_id": 187,
+     "column": "i_w_bhl_weg",
+     "dirty_value": null,
+     "detection": {
+      "method": "missing_value",
+      "score": 1.0,
+      "error_type": "MISSING",
+      "reason": "Cell is NaN"
+     },
+     "candidates": [
+      {
+       "value": 0,
+       "probability": 0.553994
+      },
+      {
+       "value": -321,
+       "probability": 0.294617
+      },
+      {
+       "value": 450,
+       "probability": 0.151388
+      }
+     ],
+     "repair_method": "statistical_repair",
+     "uncertainty": {
+      "raw_confidence": 0.553994,
+      "self_consistency": 1.0,
+      "entropy": 0.973042,
+      "normalized_entropy": 0.885701,
+      "n_candidates": 3
+     },
+     "calibration": {
+      "raw": 0.553994,
+      "p": 0.11769005847953216,
+      "shift": -0.4363039415204678
+     },
+     "q": 0.9997987117552335,
+     "expected_costs": {
+      "auto": 22.057748538011694,
+      "human": 2.0,
+      "abstain": 4.998993558776167
+     },
+     "action": "HUMAN_REVIEW",
+     "context": [
+      {
+       "column": "labels",
+       "value": 0.0,
+       "is_target": false
+      },
+      {
+       "column": "i_w_blo_weg",
+       "value": 8.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_blo_power",
+       "value": 0.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_blo_voltage",
+       "value": 0.0,
+       "is_target": false
+      },
+      {
+       "column": "i_w_bhl_weg",
+       "value": null,
+       "is_target": true
+      },
+      {
+       "column": "o_w_bhl_power",
+       "value": 23520.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_bhl_voltage",
+       "value": 56.0,
+       "is_target": false
+      },
+      {
+       "column": "i_w_bhr_weg",
+       "value": -58.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_bhr_power",
+       "value": 19062.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_bhr_voltage",
+       "value": 52.0,
+       "is_target": false
+      },
+      {
+       "column": "i_w_bru_weg",
+       "value": 581.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_bru_power",
+       "value": 0.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_bru_voltage",
+       "value": 0.0,
+       "is_target": false
+      },
+      {
+       "column": "i_w_hr_weg",
+       "value": 0.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_hr_power",
+       "value": 8442.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_hr_voltage",
+       "value": 26.0,
+       "is_target": false
+      },
+      {
+       "column": "i_w_hl_weg",
+       "value": 0.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_hl_power",
+       "value": 11822.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_hl_voltage",
+       "value": 26.0,
+       "is_target": false
+      }
+     ]
+    },
+    {
+     "row_id": 317,
+     "column": "i_w_bhl_weg",
+     "dirty_value": null,
+     "detection": {
+      "method": "missing_value",
+      "score": 1.0,
+      "error_type": "MISSING",
+      "reason": "Cell is NaN"
+     },
+     "candidates": [
+      {
+       "value": 0,
+       "probability": 0.554317
+      },
+      {
+       "value": -321,
+       "probability": 0.259905
+      },
+      {
+       "value": 450,
+       "probability": 0.185778
+      }
+     ],
+     "repair_method": "statistical_repair",
+     "uncertainty": {
+      "raw_confidence": 0.554317,
+      "self_consistency": 1.0,
+      "entropy": 0.989966,
+      "normalized_entropy": 0.901105,
+      "n_candidates": 3
+     },
+     "calibration": {
+      "raw": 0.554317,
+      "p": 0.11769005847953216,
+      "shift": -0.43662694152046777
+     },
+     "q": 0.9997987117552335,
+     "expected_costs": {
+      "auto": 22.057748538011694,
+      "human": 2.0,
+      "abstain": 4.998993558776167
+     },
+     "action": "HUMAN_REVIEW",
+     "context": [
+      {
+       "column": "labels",
+       "value": 0.0,
+       "is_target": false
+      },
+      {
+       "column": "i_w_blo_weg",
+       "value": -108.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_blo_power",
+       "value": 0.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_blo_voltage",
+       "value": 0.0,
+       "is_target": false
+      },
+      {
+       "column": "i_w_bhl_weg",
+       "value": null,
+       "is_target": true
+      },
+      {
+       "column": "o_w_bhl_power",
+       "value": 24054.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_bhl_voltage",
+       "value": 57.0,
+       "is_target": false
+      },
+      {
+       "column": "i_w_bhr_weg",
+       "value": 454.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_bhr_power",
+       "value": 11610.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_bhr_voltage",
+       "value": 44.0,
+       "is_target": false
+      },
+      {
+       "column": "i_w_bru_weg",
+       "value": 581.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_bru_power",
+       "value": 0.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_bru_voltage",
+       "value": 0.0,
+       "is_target": false
+      },
+      {
+       "column": "i_w_hr_weg",
+       "value": -833.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_hr_power",
+       "value": 10314.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_hr_voltage",
+       "value": 26.0,
+       "is_target": false
+      },
+      {
+       "column": "i_w_hl_weg",
+       "value": -833.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_hl_power",
+       "value": 12888.0,
+       "is_target": false
+      },
+      {
+       "column": "o_w_hl_voltage",
+       "value": 27.0,
+       "is_target": false
+      }
+     ]
+    }
+   ],
+   "seconds": 7.8
+  },
+  {
+   "dataset": "adult",
+   "n_rows": 45222,
+   "n_cols": 15,
+   "n_cells": 678330,
+   "n_flagged": 5829,
+   "n_decided": 5829,
+   "calibration_method": "base-rate fallback (no calibrator fitted)",
+   "calibration_note": "All 4081 training labels are incorrect; no calibrator can fit. Calibrated probability collapses to the base rate (0.00). This is the documented Adult negative result.",
+   "detection_note": "'adult': all training labels are constant (0); q is a smoothed constant per group.",
+   "costs": {
+    "wrong": 10.0,
+    "human": 2.0,
+    "abstain": 5.0
+   },
+   "columns": [
+    {
+     "name": "age",
+     "kind": "numerical",
+     "n_distinct": 74
+    },
+    {
+     "name": "workclass",
+     "kind": "categorical",
+     "n_distinct": 7
+    },
+    {
+     "name": "fnlwgt",
+     "kind": "numerical",
+     "n_distinct": 26741
+    },
+    {
+     "name": "education",
+     "kind": "categorical",
+     "n_distinct": 16
+    },
+    {
+     "name": "educational_num",
+     "kind": "numerical",
+     "n_distinct": 16
+    },
+    {
+     "name": "marital_status",
+     "kind": "categorical",
+     "n_distinct": 7
+    },
+    {
+     "name": "occupation",
+     "kind": "categorical",
+     "n_distinct": 14
+    },
+    {
+     "name": "relationship",
+     "kind": "categorical",
+     "n_distinct": 6
+    },
+    {
+     "name": "race",
+     "kind": "categorical",
+     "n_distinct": 5
+    },
+    {
+     "name": "gender",
+     "kind": "binary",
+     "n_distinct": 2
+    },
+    {
+     "name": "capital_gain",
+     "kind": "numerical",
+     "n_distinct": 121
+    },
+    {
+     "name": "capital_loss",
+     "kind": "numerical",
+     "n_distinct": 97
+    },
+    {
+     "name": "hours_per_week",
+     "kind": "numerical",
+     "n_distinct": 96
+    },
+    {
+     "name": "native_country",
+     "kind": "categorical",
+     "n_distinct": 41
+    },
+    {
+     "name": "income",
+     "kind": "binary",
+     "n_distinct": 2
+    }
+   ],
+   "preview_rows": [
+    {
+     "age": 25,
+     "workclass": "Private",
+     "fnlwgt": 226802,
+     "education": "11th",
+     "educational_num": 7,
+     "marital_status": "Never-married",
+     "occupation": "Machine-op-inspct",
+     "relationship": "Own-child",
+     "race": "Black",
+     "gender": "Male",
+     "capital_gain": 0,
+     "capital_loss": 0,
+     "hours_per_week": 40,
+     "native_country": "United-States",
+     "income": 1
+    },
+    {
+     "age": 38,
+     "workclass": "Private",
+     "fnlwgt": 89814,
+     "education": "HS-grad",
+     "educational_num": 9,
+     "marital_status": "Married-civ-spouse",
+     "occupation": "Farming-fishing",
+     "relationship": "Husband",
+     "race": "White",
+     "gender": "Male",
+     "capital_gain": 0,
+     "capital_loss": 0,
+     "hours_per_week": 50,
+     "native_country": "United-States",
+     "income": 1
+    },
+    {
+     "age": 28,
+     "workclass": "Local-gov",
+     "fnlwgt": 336951,
+     "education": "Assoc-acdm",
+     "educational_num": 12,
+     "marital_status": "Married-civ-spouse",
+     "occupation": "Protective-serv",
+     "relationship": "Husband",
+     "race": "White",
+     "gender": "Male",
+     "capital_gain": 0,
+     "capital_loss": 0,
+     "hours_per_week": 40,
+     "native_country": "United-States",
+     "income": 0
+    },
+    {
+     "age": 44,
+     "workclass": "Private",
+     "fnlwgt": 160323,
+     "education": "Some-college",
+     "educational_num": 10,
+     "marital_status": "Married-civ-spouse",
+     "occupation": "Machine-op-inspct",
+     "relationship": "Husband",
+     "race": "Black",
+     "gender": "Male",
+     "capital_gain": 7688,
+     "capital_loss": 0,
+     "hours_per_week": 40,
+     "native_country": "United-States",
+     "income": 0
+    },
+    {
+     "age": 34,
+     "workclass": "Private",
+     "fnlwgt": 198693,
+     "education": "10th",
+     "educational_num": 6,
+     "marital_status": "Never-married",
+     "occupation": "Other-service",
+     "relationship": "Not-in-family",
+     "race": "White",
+     "gender": "Male",
+     "capital_gain": 0,
+     "capital_loss": 0,
+     "hours_per_week": 30,
+     "native_country": "United-States",
+     "income": 1
+    },
+    {
+     "age": 63,
+     "workclass": "Self-emp-not-inc",
+     "fnlwgt": 104626,
+     "education": "Prof-school",
+     "educational_num": 15,
+     "marital_status": "Married-civ-spouse",
+     "occupation": "Prof-specialty",
+     "relationship": "Husband",
+     "race": "White",
+     "gender": "Male",
+     "capital_gain": 3103,
+     "capital_loss": 0,
+     "hours_per_week": 32,
+     "native_country": "United-States",
+     "income": 0
+    },
+    {
+     "age": 24,
+     "workclass": "Private",
+     "fnlwgt": 369667,
+     "education": "Some-college",
+     "educational_num": 10,
+     "marital_status": "Never-married",
+     "occupation": "Other-service",
+     "relationship": "Unmarried",
+     "race": "White",
+     "gender": "Female",
+     "capital_gain": 0,
+     "capital_loss": 0,
+     "hours_per_week": 40,
+     "native_country": "United-States",
+     "income": 1
+    },
+    {
+     "age": 55,
+     "workclass": "Private",
+     "fnlwgt": 104996,
+     "education": "7th-8th",
+     "educational_num": 4,
+     "marital_status": "Married-civ-spouse",
+     "occupation": "Craft-repair",
+     "relationship": "Husband",
+     "race": "White",
+     "gender": "Male",
+     "capital_gain": 0,
+     "capital_loss": 0,
+     "hours_per_week": 10,
+     "native_country": "United-States",
+     "income": 1
+    }
+   ],
+   "preview_flagged": [
+    [
+     7,
+     "hours_per_week"
+    ]
+   ],
+   "cells": [
+    {
+     "row_id": 682,
+     "column": "fnlwgt",
+     "dirty_value": 652784,
+     "detection": {
+      "method": "iqr_outlier",
+      "score": 0.4942,
+      "error_type": "STATISTICAL_OUTLIER",
+      "reason": "Value 652784 is beyond the IQR fence [-244225.00, 599539.25] (Q1=117388.25, Q3=237926.0, IQR=120537.75, k=3.0)."
+     },
+     "candidates": [
+      {
+       "value": 178316,
+       "probability": 0.532969
+      },
+      {
+       "value": 117388,
+       "probability": 0.292135
+      },
+      {
+       "value": 237926,
+       "probability": 0.174897
+      }
+     ],
+     "repair_method": "statistical_repair",
+     "uncertainty": {
+      "raw_confidence": 0.532969,
+      "self_consistency": 1.0,
+      "entropy": 0.99982,
+      "normalized_entropy": 0.910075,
+      "n_candidates": 3
+     },
+     "calibration": {
+      "raw": 0.532969,
+      "p": 1.7039839294624574e-09,
+      "shift": -0.5329689982960161
+     },
+     "q": 0.0002449179524859172,
+     "expected_costs": {
+      "auto": 9.99999998296016,
+      "human": 2.0,
+      "abstain": 0.0012245897624295861
+     },
+     "action": "LEAVE_UNCHANGED",
+     "context": [
+      {
+       "column": "age",
+       "value": 47,
+       "is_target": false
+      },
+      {
+       "column": "workclass",
+       "value": "Private",
+       "is_target": false
+      },
+      {
+       "column": "fnlwgt",
+       "value": 652784,
+       "is_target": true
+      },
+      {
+       "column": "education",
+       "value": "10th",
+       "is_target": false
+      },
+      {
+       "column": "educational_num",
+       "value": 6,
+       "is_target": false
+      },
+      {
+       "column": "marital_status",
+       "value": "Married-civ-spouse",
+       "is_target": false
+      },
+      {
+       "column": "occupation",
+       "value": "Machine-op-inspct",
+       "is_target": false
+      },
+      {
+       "column": "relationship",
+       "value": "Husband",
+       "is_target": false
+      },
+      {
+       "column": "race",
+       "value": "White",
+       "is_target": false
+      },
+      {
+       "column": "gender",
+       "value": "Male",
+       "is_target": false
+      },
+      {
+       "column": "capital_gain",
+       "value": 0,
+       "is_target": false
+      },
+      {
+       "column": "capital_loss",
+       "value": 0,
+       "is_target": false
+      },
+      {
+       "column": "hours_per_week",
+       "value": 40,
+       "is_target": false
+      },
+      {
+       "column": "native_country",
+       "value": "United-States",
+       "is_target": false
+      },
+      {
+       "column": "income",
+       "value": 1,
+       "is_target": false
+      }
+     ]
+    },
+    {
+     "row_id": 923,
+     "column": "fnlwgt",
+     "dirty_value": 662460,
+     "detection": {
+      "method": "iqr_outlier",
+      "score": 0.5022,
+      "error_type": "STATISTICAL_OUTLIER",
+      "reason": "Value 662460 is beyond the IQR fence [-244225.00, 599539.25] (Q1=117388.25, Q3=237926.0, IQR=120537.75, k=3.0)."
+     },
+     "candidates": [
+      {
+       "value": 178316,
+       "probability": 0.5271
+      },
+      {
+       "value": 117388,
+       "probability": 0.311619
+      },
+      {
+       "value": 237926,
+       "probability": 0.161281
+      }
+     ],
+     "repair_method": "statistical_repair",
+     "uncertainty": {
+      "raw_confidence": 0.5271,
+      "self_consistency": 1.0,
+      "entropy": 0.99515,
+      "normalized_entropy": 0.905825,
+      "n_candidates": 3
+     },
+     "calibration": {
+      "raw": 0.5271,
+      "p": 1.6940125374693532e-09,
+      "shift": -0.5270999983059875
+     },
+     "q": 0.0002449179524859172,
+     "expected_costs": {
+      "auto": 9.999999983059876,
+      "human": 2.0,
+      "abstain": 0.0012245897624295861
+     },
+     "action": "LEAVE_UNCHANGED",
+     "context": [
+      {
+       "column": "age",
+       "value": 59,
+       "is_target": false
+      },
+      {
+       "column": "workclass",
+       "value": "Local-gov",
+       "is_target": false
+      },
+      {
+       "column": "fnlwgt",
+       "value": 662460,
+       "is_target": true
+      },
+      {
+       "column": "education",
+       "value": "10th",
+       "is_target": false
+      },
+      {
+       "column": "educational_num",
+       "value": 6,
+       "is_target": false
+      },
+      {
+       "column": "marital_status",
+       "value": "Widowed",
+       "is_target": false
+      },
+      {
+       "column": "occupation",
+       "value": "Prof-specialty",
+       "is_target": false
+      },
+      {
+       "column": "relationship",
+       "value": "Unmarried",
+       "is_target": false
+      },
+      {
+       "column": "race",
+       "value": "White",
+       "is_target": false
+      },
+      {
+       "column": "gender",
+       "value": "Female",
+       "is_target": false
+      },
+      {
+       "column": "capital_gain",
+       "value": 0,
+       "is_target": false
+      },
+      {
+       "column": "capital_loss",
+       "value": 0,
+       "is_target": false
+      },
+      {
+       "column": "hours_per_week",
+       "value": 15,
+       "is_target": false
+      },
+      {
+       "column": "native_country",
+       "value": "United-States",
+       "is_target": false
+      },
+      {
+       "column": "income",
+       "value": 1,
+       "is_target": false
+      }
+     ]
+    },
+    {
+     "row_id": 967,
+     "column": "fnlwgt",
+     "dirty_value": 629900,
+     "detection": {
+      "method": "iqr_outlier",
+      "score": 0.4752,
+      "error_type": "STATISTICAL_OUTLIER",
+      "reason": "Value 629900 is beyond the IQR fence [-244225.00, 599539.25] (Q1=117388.25, Q3=237926.0, IQR=120537.75, k=3.0)."
+     },
+     "candidates": [
+      {
+       "value": 178316,
+       "probability": 0.542707
+      },
+      {
+       "value": 117388,
+       "probability": 0.334917
+      },
+      {
+       "value": 237926,
+       "probability": 0.122377
+      }
+     ],
+     "repair_method": "statistical_repair",
+     "uncertainty": {
+      "raw_confidence": 0.542707,
+      "self_consistency": 1.0,
+      "entropy": 0.955122,
+      "normalized_entropy": 0.86939,
+      "n_candidates": 3
+     },
+     "calibration": {
+      "raw": 0.542707,
+      "p": 1.7206583810761545e-09,
+      "shift": -0.5427069982793417
+     },
+     "q": 0.0002449179524859172,
+     "expected_costs": {
+      "auto": 9.999999982793415,
+      "human": 2.0,
+      "abstain": 0.0012245897624295861
+     },
+     "action": "LEAVE_UNCHANGED",
+     "context": [
+      {
+       "column": "age",
+       "value": 25,
+       "is_target": false
+      },
+      {
+       "column": "workclass",
+       "value": "Private",
+       "is_target": false
+      },
+      {
+       "column": "fnlwgt",
+       "value": 629900,
+       "is_target": true
+      },
+      {
+       "column": "education",
+       "value": "Bachelors",
+       "is_target": false
+      },
+      {
+       "column": "educational_num",
+       "value": 13,
+       "is_target": false
+      },
+      {
+       "column": "marital_status",
+       "value": "Married-civ-spouse",
+       "is_target": false
+      },
+      {
+       "column": "occupation",
+       "value": "Prof-specialty",
+       "is_target": false
+      },
+      {
+       "column": "relationship",
+       "value": "Wife",
+       "is_target": false
+      },
+      {
+       "column": "race",
+       "value": "Black",
+       "is_target": false
+      },
+      {
+       "column": "gender",
+       "value": "Female",
+       "is_target": false
+      },
+      {
+       "column": "capital_gain",
+       "value": 0,
+       "is_target": false
+      },
+      {
+       "column": "capital_loss",
+       "value": 0,
+       "is_target": false
+      },
+      {
+       "column": "hours_per_week",
+       "value": 40,
+       "is_target": false
+      },
+      {
+       "column": "native_country",
+       "value": "United-States",
+       "is_target": false
+      },
+      {
+       "column": "income",
+       "value": 0,
+       "is_target": false
+      }
+     ]
+    },
+    {
+     "row_id": 1273,
+     "column": "fnlwgt",
+     "dirty_value": 632733,
+     "detection": {
+      "method": "iqr_outlier",
+      "score": 0.4775,
+      "error_type": "STATISTICAL_OUTLIER",
+      "reason": "Value 632733 is beyond the IQR fence [-244225.00, 599539.25] (Q1=117388.25, Q3=237926.0, IQR=120537.75, k=3.0)."
+     },
+     "candidates": [
+      {
+       "value": 178316,
+       "probability": 0.548606
+      },
+      {
+       "value": 117388,
+       "probability": 0.293695
+      },
+      {
+       "value": 237926,
+       "probability": 0.157698
+      }
+     ],
+     "repair_method": "statistical_repair",
+     "uncertainty": {
+      "raw_confidence": 0.548606,
+      "self_consistency": 1.0,
+      "entropy": 0.980488,
+      "normalized_entropy": 0.892479,
+      "n_candidates": 3
+     },
+     "calibration": {
+      "raw": 0.548606,
+      "p": 1.7308385417114246e-09,
+      "shift": -0.5486059982691615
+     },
+     "q": 0.0002449179524859172,
+     "expected_costs": {
+      "auto": 9.999999982691614,
+      "human": 2.0,
+      "abstain": 0.0012245897624295861
+     },
+     "action": "LEAVE_UNCHANGED",
+     "context": [
+      {
+       "column": "age",
+       "value": 28,
+       "is_target": false
+      },
+      {
+       "column": "workclass",
+       "value": "Private",
+       "is_target": false
+      },
+      {
+       "column": "fnlwgt",
+       "value": 632733,
+       "is_target": true
+      },
+      {
+       "column": "education",
+       "value": "Masters",
+       "is_target": false
+      },
+      {
+       "column": "educational_num",
+       "value": 14,
+       "is_target": false
+      },
+      {
+       "column": "marital_status",
+       "value": "Married-civ-spouse",
+       "is_target": false
+      },
+      {
+       "column": "occupation",
+       "value": "Sales",
+       "is_target": false
+      },
+      {
+       "column": "relationship",
+       "value": "Husband",
+       "is_target": false
+      },
+      {
+       "column": "race",
+       "value": "White",
+       "is_target": false
+      },
+      {
+       "column": "gender",
+       "value": "Male",
+       "is_target": false
+      },
+      {
+       "column": "capital_gain",
+       "value": 0,
+       "is_target": false
+      },
+      {
+       "column": "capital_loss",
+       "value": 0,
+       "is_target": false
+      },
+      {
+       "column": "hours_per_week",
+       "value": 60,
+       "is_target": false
+      },
+      {
+       "column": "native_country",
+       "value": "United-States",
+       "is_target": false
+      },
+      {
+       "column": "income",
+       "value": 0,
+       "is_target": false
+      }
+     ]
+    },
+    {
+     "row_id": 1402,
+     "column": "fnlwgt",
+     "dirty_value": 651702,
+     "detection": {
+      "method": "iqr_outlier",
+      "score": 0.4933,
+      "error_type": "STATISTICAL_OUTLIER",
+      "reason": "Value 651702 is beyond the IQR fence [-244225.00, 599539.25] (Q1=117388.25, Q3=237926.0, IQR=120537.75, k=3.0)."
+     },
+     "candidates": [
+      {
+       "value": 178316,
+       "probability": 0.516491
+      },
+      {
+       "value": 117388,
+       "probability": 0.285529
+      },
+      {
+       "value": 237926,
+       "probability": 0.197979
+      }
+     ],
+     "repair_method": "statistical_repair",
+     "uncertainty": {
+      "raw_confidence": 0.516491,
+      "self_consistency": 1.0,
+      "entropy": 1.019775,
+      "normalized_entropy": 0.928239,
+      "n_candidates": 3
+     },
+     "calibration": {
+      "raw": 0.516491,
+      "p": 1.6761357535600407e-09,
+      "shift": -0.5164909983238642
+     },
+     "q": 0.0002449179524859172,
+     "expected_costs": {
+      "auto": 9.999999983238641,
+      "human": 2.0,
+      "abstain": 0.0012245897624295861
+     },
+     "action": "LEAVE_UNCHANGED",
+     "context": [
+      {
+       "column": "age",
+       "value": 44,
+       "is_target": false
+      },
+      {
+       "column": "workclass",
+       "value": "Private",
+       "is_target": false
+      },
+      {
+       "column": "fnlwgt",
+       "value": 651702,
+       "is_target": true
+      },
+      {
+       "column": "education",
+       "value": "HS-grad",
+       "is_target": false
+      },
+      {
+       "column": "educational_num",
+       "value": 9,
+       "is_target": false
+      },
+      {
+       "column": "marital_status",
+       "value": "Married-civ-spouse",
+       "is_target": false
+      },
+      {
+       "column": "occupation",
+       "value": "Craft-repair",
+       "is_target": false
+      },
+      {
+       "column": "relationship",
+       "value": "Husband",
+       "is_target": false
+      },
+      {
+       "column": "race",
+       "value": "White",
+       "is_target": false
+      },
+      {
+       "column": "gender",
+       "value": "Male",
+       "is_target": false
+      },
+      {
+       "column": "capital_gain",
+       "value": 0,
+       "is_target": false
+      },
+      {
+       "column": "capital_loss",
+       "value": 0,
+       "is_target": false
+      },
+      {
+       "column": "hours_per_week",
+       "value": 72,
+       "is_target": false
+      },
+      {
+       "column": "native_country",
+       "value": "United-States",
+       "is_target": false
+      },
+      {
+       "column": "income",
+       "value": 1,
+       "is_target": false
+      }
+     ]
+    },
+    {
+     "row_id": 1405,
+     "column": "fnlwgt",
+     "dirty_value": 644278,
+     "detection": {
+      "method": "iqr_outlier",
+      "score": 0.4871,
+      "error_type": "STATISTICAL_OUTLIER",
+      "reason": "Value 644278 is beyond the IQR fence [-244225.00, 599539.25] (Q1=117388.25, Q3=237926.0, IQR=120537.75, k=3.0)."
+     },
+     "candidates": [
+      {
+       "value": 178316,
+       "probability": 0.549666
+      },
+      {
+       "value": 117388,
+       "probability": 0.297746
+      },
+      {
+       "value": 237926,
+       "probability": 0.152588
+      }
+     ],
+     "repair_method": "statistical_repair",
+     "uncertainty": {
+      "raw_confidence": 0.549666,
+      "self_consistency": 1.0,
+      "entropy": 0.976536,
+      "normalized_entropy": 0.888881,
+      "n_candidates": 3
+     },
+     "calibration": {
+      "raw": 0.549666,
+      "p": 1.7326742032912163e-09,
+      "shift": -0.5496659982673258
+     },
+     "q": 0.0002449179524859172,
+     "expected_costs": {
+      "auto": 9.999999982673257,
+      "human": 2.0,
+      "abstain": 0.0012245897624295861
+     },
+     "action": "LEAVE_UNCHANGED",
+     "context": [
+      {
+       "column": "age",
+       "value": 36,
+       "is_target": false
+      },
+      {
+       "column": "workclass",
+       "value": "Private",
+       "is_target": false
+      },
+      {
+       "column": "fnlwgt",
+       "value": 644278,
+       "is_target": true
+      },
+      {
+       "column": "education",
+       "value": "HS-grad",
+       "is_target": false
+      },
+      {
+       "column": "educational_num",
+       "value": 9,
+       "is_target": false
+      },
+      {
+       "column": "marital_status",
+       "value": "Married-civ-spouse",
+       "is_target": false
+      },
+      {
+       "column": "occupation",
+       "value": "Craft-repair",
+       "is_target": false
+      },
+      {
+       "column": "relationship",
+       "value": "Husband",
+       "is_target": false
+      },
+      {
+       "column": "race",
+       "value": "White",
+       "is_target": false
+      },
+      {
+       "column": "gender",
+       "value": "Male",
+       "is_target": false
+      },
+      {
+       "column": "capital_gain",
+       "value": 0,
+       "is_target": false
+      },
+      {
+       "column": "capital_loss",
+       "value": 0,
+       "is_target": false
+      },
+      {
+       "column": "hours_per_week",
+       "value": 25,
+       "is_target": false
+      },
+      {
+       "column": "native_country",
+       "value": "United-States",
+       "is_target": false
+      },
+      {
+       "column": "income",
+       "value": 1,
+       "is_target": false
+      }
+     ]
+    }
+   ],
+   "seconds": 9.0
+  }
+ ]
+}
