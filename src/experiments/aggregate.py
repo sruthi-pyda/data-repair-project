@@ -104,7 +104,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 from scipy import stats
@@ -543,3 +543,120 @@ def repeated_splits(
         n_decided, n_fitted,
     )
     return result
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Cell-level bootstrap (W11)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+def bootstrap_metric(
+    y_true: Sequence[int],
+    scores: Sequence[float],
+    metric: Callable[[np.ndarray, np.ndarray], Optional[float]],
+    confidence: float = 0.95,
+    n_boot: int = DEFAULT_N_BOOT,
+    seed: int = 42,
+) -> Interval:
+    """
+    Percentile bootstrap interval for a metric, resampling **cells**.
+
+    Why this exists, and why :func:`bootstrap_interval` cannot do it
+    (`docs/w11_plan.md` §2): that function resamples a sequence of
+    *per-split values*. When the splits are identical — which is what
+    happens whenever a dataset sits at or below the experiment's row cap and
+    so is never subsampled — all its values are equal and it returns a
+    **zero-width** interval. A zero-width interval reads as perfect
+    stability, when in fact no resampling occurred at all.
+
+    This resamples the evaluated ``(label, score)`` pairs instead, with
+    replacement, and recomputes the metric on each resample. That yields a
+    genuine uncertainty estimate for a single run of a single dataset,
+    however few rows it has.
+
+    It measures **sampling uncertainty of the metric**, not algorithmic
+    randomness. Varying the model seed across replicates measures the
+    latter, and an honest report needs both: a small dataset with a fixed
+    seed otherwise reproduces the defect this function was written to fix.
+
+    Parameters
+    ----------
+    y_true, scores : sequence
+        The evaluated cells. Must be the same length.
+    metric : callable
+        ``metric(y, s) -> float | None``, e.g.
+        :func:`src.detection_eval.metrics.pr_auc`. A resample on which the
+        metric is undefined (``None``) is skipped rather than counted as
+        zero, so a degenerate resample cannot drag the interval down.
+    confidence : float
+        In (0, 1). Default 0.95.
+    n_boot : int
+        Resamples to draw.
+    seed : int
+        Deterministic: the same arguments always give the same interval.
+
+    Returns
+    -------
+    Interval
+        ``n`` is the number of resamples the metric was defined on, and
+        ``mean`` is the metric on the **observed** data (not the bootstrap
+        mean), so the reported point estimate is the real one. An empty
+        interval (``n == 0``) means the metric was undefined throughout —
+        a placeholder for printing, never a score.
+
+    Examples
+    --------
+    A metric that is genuinely constant still reports a zero-width
+    interval, and that is correct — but it is now a measured fact rather
+    than an artefact of not resampling.
+    """
+    y = np.asarray(y_true)
+    s = np.asarray(scores, dtype=float)
+    if y.shape[0] != s.shape[0]:
+        raise ValueError(
+            f"y_true and scores must be the same length, got "
+            f"{y.shape[0]} and {s.shape[0]}"
+        )
+    if not 0.0 < confidence < 1.0:
+        raise ValueError(f"confidence must be in (0, 1), got {confidence}")
+    if n_boot < 1:
+        raise ValueError(f"n_boot must be >= 1, got {n_boot}")
+    n = int(y.shape[0])
+    if n == 0:
+        return _empty_interval()
+
+    observed = metric(y, s)
+    if observed is None or not np.isfinite(float(observed)):
+        return _empty_interval()
+
+    rng = np.random.default_rng(seed)
+    draws: List[float] = []
+    for _ in range(int(n_boot)):
+        idx = rng.integers(0, n, size=n)
+        v = metric(y[idx], s[idx])
+        if v is None:
+            continue
+        v = float(v)
+        if np.isfinite(v):
+            draws.append(v)
+
+    if not draws:
+        return _empty_interval()
+
+    arr = np.asarray(draws, dtype=float)
+    alpha = (1.0 - confidence) / 2.0
+    lo = float(np.percentile(arr, 100.0 * alpha))
+    hi = float(np.percentile(arr, 100.0 * (1.0 - alpha)))
+    mean = float(observed)
+    # Keep the documented invariant lo <= mean <= hi: the observed value can
+    # fall outside the percentile band on a skewed metric, and widening is
+    # the honest repair.
+    lo = min(lo, mean)
+    hi = max(hi, mean)
+    return Interval(
+        mean=mean,
+        lo=lo,
+        hi=hi,
+        std=float(np.std(arr, ddof=1)) if arr.size > 1 else 0.0,
+        n=int(arr.size),
+    )
