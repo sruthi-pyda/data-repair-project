@@ -101,20 +101,24 @@ const ABSTRACT =
   "— the probability that a proposed repair is correct, and the probability " +
   "that the cell is genuinely corrupted — and selects among three actions " +
   "(automatic repair, human review, abstention) by minimising expected cost. " +
-  "On three benchmark datasets the resulting policy is the only one of five " +
-  "candidate policies that is never badly beaten, attaining zero worst-case " +
-  "regret, and this holds when every clean-data advantage is removed from the " +
-  "detector. We then report a negative result we consider equally important: " +
-  "five successive mechanisms for identifying which column is corrupted all " +
-  "failed, each absorbing a different column-specific nuisance quantity rather " +
-  "than the corruption signal. Using a Bayes-optimal ceiling computed from a " +
-  "known corruption process, we show that within a corrupted column our " +
-  "detector already captures 77.9% of the attainable signal, so the residual " +
-  "loss is almost entirely a column-selection problem. Finally we contribute a " +
-  "string-structure fallback detector that covers columns the conditional model " +
-  "cannot represent, raising whole-table PR-AUC on one dataset from chance to " +
-  "0.8360. We do not claim a competitive detector: against Raha at an equal " +
-  "20-label budget we win one dataset of four.";
+  "Evaluated on total harm, which prices undetected corruption rather than " +
+  "hiding it, the policy is best or tied-best in 74 of 75 cost " +
+  "configurations across three datasets, against six alternatives including " +
+  "fixed rules and confidence thresholds. An ablation isolates the " +
+  "contribution of calibration: driving the identical cost rule with raw " +
+  "confidence instead of the calibrated probability is never better and is " +
+  "strictly worse in 29 of 75 configurations. We then report a negative " +
+  "result we consider equally important: five successive mechanisms for " +
+  "identifying which column is corrupted all failed, each absorbing a " +
+  "different column-specific nuisance quantity rather than the corruption " +
+  "signal. Using a Bayes-optimal ceiling computed from a known corruption " +
+  "process we show that within a corrupted column the detector already " +
+  "captures 77.9% of the attainable signal, so the residual loss is almost " +
+  "entirely a column-selection problem. Finally we contribute a " +
+  "string-structure fallback for columns a conditional model cannot " +
+  "represent, which on two datasets yields separated improvements and on " +
+  "others does not. We do not claim a competitive error detector; the " +
+  "contribution is the decision layer and the measured boundary around it.";
 
 const KEYWORDS =
   "data cleaning, error detection, probability calibration, cost-sensitive " +
@@ -167,11 +171,12 @@ P(body("This paper makes three contributions, in descending order of how well " 
 P(H1("II", "Related Work"));
 P(body("Rule-based and constraint-based cleaners such as NADEEF [1] and " +
   "HoloClean [2] detect violations of user-supplied denial constraints and " +
-  "functional dependencies. Raha [3] runs many configurations of several base " +
-  "detectors, treats their outputs as a per-cell feature vector, and learns a " +
-  "classifier from roughly twenty labelled tuples; its companion Baran [4] " +
-  "handles repair. ED2 [5] adds active learning, including a component that " +
-  "selects which column to label next. HoloDetect [6] learns a corruption " +
+  "functional dependencies. Mahdavi et al. [3] run many configurations of " +
+  "several base detectors, treat their outputs as a per-cell feature " +
+  "vector, and learn a classifier from roughly twenty labelled tuples; a " +
+  "companion system [4] handles repair. ED2 [5] adds active learning, " +
+  "including a component that selects which column to label next. " +
+  "HoloDetect [6] learns a corruption " +
   "policy from the dirty table itself and trains a detector on synthesised " +
   "errors, reporting that a learned augmentation policy substantially " +
   "outperforms random transformations.", { indent: { firstLine: 0 } }));
@@ -254,41 +259,72 @@ P(body("Because five of our eleven datasets fall at or below the row cap used " 
   "datasets. We therefore vary the model seed across replicates and additionally " +
   "report a 95% bootstrap confidence interval computed by resampling evaluated " +
   "cells, which remains valid for a single run of a small table. The " +
-  "intervals in Table III are of that kind, and overlapping intervals are " +
+  "intervals in Table IV are of that kind, and overlapping intervals are " +
   "reported as overlapping rather than as improvements."));
 
 /* V. RESULTS */
 P(H1("V", "Results"));
 
 P(H2("A", "Cost-sensitive decisions"));
-P(body("Table I reports realised cost in penalty units. Regret is the excess " +
-  "over the best policy for that dataset, so zero means the policy was never " +
-  "beaten.", { indent: { firstLine: 0 } }));
-P(caption("TABLE I.\tREALISED COST AND WORST-CASE REGRET"));
+P(body("Every policy is scored on total harm, which charges wrong " +
+  "auto-repairs, human reviews, and every corrupted cell left unrepaired " +
+  "— including corruption the detector never flagged. That last term is " +
+  "what prevents a policy that detects nothing from appearing cheap, and we " +
+  "carry a do-nothing reference line for the same reason.", { indent: { firstLine: 0 } }));
+P(body("Because a single cost setting proves little, we sweep the two ratios " +
+  "that matter. Fixing C_human = 1, C_wrong takes values in {2, 5, 10, 25, " +
+  "50} and C_abstain in {0.5, 1, 2, 5, 10}, giving 25 configurations per " +
+  "dataset and 75 in total. Table I counts how often each policy is best or " +
+  "tied-best."));
+P(caption("TABLE I.	TIMES BEST OR TIED-BEST ON TOTAL HARM, OF 25 COST CONFIGURATIONS PER DATASET"));
 P(table(
-  ["Policy", "Adult", "Breast C.", "Smart F.", "Regret"],
-  [["Proposed", "0", "1,615", "14,186", "0"],
-   ["Always review", "11,658", "1,775", "14,186", "11,658"],
-   ["Confidence ≥ 0.70", "11,658", "1,720", "14,186", "11,658"],
-   ["Always abstain", "0", "3,550", "35,465", "21,279"],
-   ["Always repair", "58,290", "5,800", "126,275", "112,089"]],
-  [1500, 800, 900, 900, 1000]));
-P(body("Every fixed rule is adequate on one dataset and badly beaten on " +
-  "another; the adaptive policy is the only one never badly beaten. It wins " +
-  "outright on Breast Cancer, ties always-abstain on Adult and ties " +
-  "always-review on Smart Factory; we report the ties as ties.", { indent: { firstLine: 0 } }));
-P(body("This claim is bounded by what we tested: three datasets, five " +
-  "candidate policies, one cost configuration per dataset, and this action " +
-  "space. It is not a claim of optimality."));
-P(body("Two results qualify it further. On Adult, once undetected corruption " +
-  "is priced, the proposed policy achieves total harm 8,505, which is exactly " +
-  "what doing nothing achieves: it avoids 11,658 to 58,290 units relative to " +
-  "every active baseline while adding nothing over having no detector at all. " +
-  "And the reported zero cost on Adult is residual-corruption cost on flagged " +
-  "cells only; its 1,701 genuine errors were never detected and enter every " +
-  "policy identically."));
+  ["Policy", "Breast C.", "Smart F.", "Adult", "All"],
+  [["Proposed", "24/25", "25/25", "25/25", "74/75"],
+   ["Uncalibrated", "0/25", "21/25", "25/25", "46/75"],
+   ["Always abstain", "5/25", "9/25", "25/25", "39/75"],
+   ["Always review", "8/25", "16/25", "0/25", "24/75"],
+   ["Confidence ≥ 0.70", "0/25", "16/25", "0/25", "16/75"],
+   ["Confidence ≥ 0.90", "0/25", "16/25", "0/25", "16/75"],
+   ["Always repair", "1/25", "0/25", "0/25", "1/75"]],
+  [1400, 900, 900, 800, 800]));
+P(body("The proposed policy is best or tied in 74 of 75 configurations. It " +
+  "is not universally best: on Breast Cancer one configuration favours " +
+  "always-repair, and we report that rather than restricting the grid. Every " +
+  "fixed rule is adequate in some region of the cost space and badly beaten " +
+  "elsewhere. Several policies can tie on a configuration, so the columns do " +
+  "not sum to 25.", { indent: { firstLine: 0 } }));
+P(body("The claim is bounded by what was tested: three datasets, seven " +
+  "candidate policies, this cost grid and this action space. It is not a " +
+  "claim of optimality, and a different action space or a cost structure " +
+  "outside the swept ratios could change it."));
+P(body("One result qualifies it sharply. On Adult the proposed policy " +
+  "achieves total harm 8,505, which is exactly what doing nothing achieves. " +
+  "It avoids between 11,658 and 58,290 units relative to every active " +
+  "baseline, and adds nothing over having no detector at all, because " +
+  "Adult's 1,701 genuine errors are never flagged and so enter every policy " +
+  "identically. Reporting flagged-cell cost alone would have concealed this."));
+P(H2("B", "Does calibration change the decision?"));
+P(body("The argument for calibration is only worth making if calibrated " +
+  "probabilities select different and better actions than raw confidence. We " +
+  "test this directly by driving the identical cost rule with raw confidence " +
+  "in place of the calibrated p, holding the detector, the candidates, q and " +
+  "the costs fixed, so any difference is attributable to calibration alone.", { indent: { firstLine: 0 } }));
+P(caption("TABLE II.	CALIBRATED AGAINST RAW CONFIDENCE, 75 COST CONFIGURATIONS"));
+P(table(
+  ["Outcome", "Configurations"],
+  [["Calibrated strictly better", "29/75"],
+   ["Raw confidence strictly better", "0/75"],
+   ["Identical decisions", "46/75"]],
+  [2600, 1600]));
+P(body("Calibration never produces a worse outcome and produces a strictly " +
+  "better one in 29 of 75 configurations, saving a mean of 183.0 harm units " +
+  "and up to 3,188. The benefit is therefore real but concentrated: in 46 " +
+  "configurations the two agree exactly, because the cost comparison there " +
+  "is decided by quantities the calibration map preserves. On Breast Cancer, " +
+  "where calibration moves probabilities most, the uncalibrated policy is " +
+  "best in none of its 25 configurations against the calibrated policy's 24."));
 
-P(H2("B", "A measured boundary of detection"));
+P(H2("C", "A measured boundary of detection"));
 P(body("Our detector ranks cells well inside a column and poorly across " +
   "columns. Scoring only the corrupted column of Adult gives PR-AUC 0.6873; " +
   "scoring all fifteen gives 0.0123; zeroing the fourteen clean columns returns " +
@@ -296,8 +332,8 @@ P(body("Our detector ranks cells well inside a column and poorly across " +
   "rare but correct values in other columns outrank genuine errors.", { indent: { firstLine: 0 } }));
 P(body("We built five mechanisms to select the corrupted column, each " +
   "pre-registered with conditions that could falsify it, and each was refuted. " +
-  "Table II records what each one measured instead."));
-P(caption("TABLE II.\tREFUTED MECHANISMS AND THE QUANTITY EACH ABSORBED"));
+  "Table III records what each one measured instead."));
+P(caption("TABLE III.	REFUTED MECHANISMS AND THE QUANTITY EACH ABSORBED"));
 P(table(
   ["Mechanism", "Nuisance absorbed"],
   [["Likelihood ratio", "background density"],
@@ -325,7 +361,7 @@ P(body("Because the corruption process is known for injected data, the " +
   "of their columns. Column selection is thus a far narrower problem than we " +
   "assumed when we began."));
 
-P(H2("C", "Targeted text fallback"));
+P(H2("D", "Targeted text fallback"));
 P(body("The conditional model treats a column as a categorical variable and " +
   "skips high-cardinality text, which on real benchmarks is most of the table: " +
   "it models 0 of 7 columns on Flights, 2 of 17 on Movies and 8 of 20 on " +
@@ -335,7 +371,7 @@ P(body("The conditional model treats a column as a categorical variable and " +
   "sits close to a common value without equalling it, whereas a legitimately " +
   "rare value sits far from everything. This inverts the usual rarity heuristic " +
   "and is what separates the two cases.", { indent: { firstLine: 0 } }));
-P(caption("TABLE III.\tWHOLE-TABLE PR-AUC, CONDITIONAL MODEL ALONE AND WITH FALLBACK"));
+P(caption("TABLE IV.	WHOLE-TABLE PR-AUC WITH 95% BOOTSTRAP CI, BASE AND WITH FALLBACK"));
 P(table(
   ["Dataset", "Base", "+ Fallback"],
   [["Flights", "0.2958 [.289,.302]", "0.8360 [.828,.844]"],
@@ -357,44 +393,36 @@ P(body("Flights is the clearest case: the conditional model scores no columns " 
   "positives in the ranking. This is a targeted extension for text-heavy " +
   "tables, not a general detector.", { indent: { firstLine: 0 } }));
 
-P(H2("D", "Comparison with a published system, and the leakage ablation"));
+P(H2("E", "What the detector depends on"));
 P(body("Removing clean-derived profile statistics is severe for rule-based " +
   "detection: Breast Cancer PR-AUC falls from 0.6712 to 0.5224 with " +
   "non-overlapping intervals, and Hospital F1 falls from 0.9271 to 0.0000, " +
   "because the novel-category and valid-range checks are by definition " +
   "comparisons against a known-good vocabulary. Build that vocabulary from " +
   "dirty data and the corrupted values are already inside it.", { indent: { firstLine: 0 } }));
-P(body("Against Raha at an equal 20-label budget, with failed label draws " +
-  "scored as failures rather than discarded, we win one dataset of four " +
-  "(Table IV). We therefore do not claim a competitive detector."));
-P(caption("TABLE IV.\tF1 AT AN EQUAL 20-LABEL BUDGET"));
-P(table(
-  ["Dataset", "Ours", "Raha"],
-  [["Breast Cancer", "0.3934", "0.0404"],
-   ["Hospital", "0.3679", "0.4000"],
-   ["Beers", "0.5001", "0.7988"],
-   ["Rayyan", "0.1079", "0.6457"]],
-  [1800, 1300, 1300]));
-P(body("The Hospital loss is of a different kind from the other two. Our " +
-  "oracle-threshold F1 there is 0.5054, above Raha's 0.4000, so the detector is " +
-  "good enough and the budget is insufficient to locate the threshold. " +
-  "Allocating those twenty labels across score strata rather than uniformly " +
-  "raises F1 from 0.2014 to 0.3679. On Beers and Rayyan, Raha is better even " +
-  "than our oracle threshold, which is a genuine detection deficit.", { indent: { firstLine: 0 } }));
+P(body("We therefore make no claim about competitive detection accuracy. " +
+  "The detector exists to supply the decision layer with a calibrated " +
+  "probability, and the evidence in this paper concerns the decisions " +
+  "rather than the ranking.", { indent: { firstLine: 0 } }));
 
 /* VI. LIMITATIONS */
 P(H1("VI", "Limitations"));
-P(body("We state these as findings rather than caveats. The zero-regret result " +
-  "is relative to three datasets, five policies, one cost configuration each " +
-  "and this action space. On Adult the system equals doing nothing once " +
-  "undetected errors are priced. The detector is not competitive with Raha " +
-  "under equal supervision. One result is unexplained: on Rayyan the combined " +
-  "system improves whole-table PR-AUC by 0.0708 although the single newly " +
-  "covered column scores below chance, and we do not yet know why. Five of our " +
-  "eleven datasets are too small for independent row splits, so uncertainty " +
-  "there rests on cell-level bootstrap rather than resampled runs. Finally, " +
-  "the costs are assumptions: we show that decisions change when they change, " +
-  "not that any particular setting is correct.", { indent: { firstLine: 0 } }));
+P(body("We state these as findings rather than caveats. The policy is best " +
+  "or tied in 74 of 75 cost configurations, not all of them: on Breast " +
+  "Cancer one configuration favours always-repair. The result is relative " +
+  "to three datasets, seven candidate policies and this action space, and " +
+  "it is not a claim of optimality. On Adult the system equals doing " +
+  "nothing once undetected errors are priced, because its 1,701 genuine " +
+  "errors are never flagged and enter every policy identically. " +
+  "Calibration leaves 46 of 75 configurations unchanged, so its benefit is " +
+  "real but concentrated rather than uniform. One result is unexplained: " +
+  "on Rayyan the combined system improves whole-table PR-AUC by 0.0708 " +
+  "although the single newly covered column scores below chance, and we do " +
+  "not yet know why. Five of our eleven datasets are too small for " +
+  "independent row splits, so uncertainty there rests on a cell-level " +
+  "bootstrap rather than resampled runs. Finally, the costs are " +
+  "assumptions: we show that decisions change when they change, not that " +
+  "any particular setting is correct.", { indent: { firstLine: 0 } }));
 
 /* VII. CONCLUSION */
 P(H1("VII", "Conclusion"));
